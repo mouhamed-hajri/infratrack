@@ -1,5 +1,85 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background-color: #f9fafb; /* gray-50 */
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(ellipse at top, #0a0f1e 0%, #050810 55%, #03040a 100%);
+  color: #e7ecf5;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #f8fafc;
+}
+
+/* Background orbs the glass refracts */
+.orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(120px);
+  opacity: 0.4;
+}
+
+@keyframes drift1 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(120px, 80px); }
+}
+@keyframes drift2 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(-110px, 60px); }
+}
+@keyframes drift3 {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(80px, -90px); }
+}
+
+/* Lightweight CSS glass for dense / repeating surfaces (fast + cross-browser).
+   The hairline is the glass rim, not a card border. */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px) saturate(130%);
+  -webkit-backdrop-filter: blur(16px) saturate(130%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+}
+
+/* Reliable CSS glass button — used inside glass containers (nav, forms) where
+   nesting a LiquidGlass component would break its rendering. */
+.glass-btn {
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.glass-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+.glass-btn:active {
+  transform: scale(0.97);
+}
+
+/* Respect users who prefer less motion: freeze the drifting orbs. */
+@media (prefers-reduced-motion: reduce) {
+  .orb { animation: none !important; }
+  html { scroll-behavior: auto; }
 }

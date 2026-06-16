@@ -45,6 +45,20 @@ point-in-polygon — deterministic, computed server-side at creation time.
 | `src/components/IssueList.tsx` | Renders issue cards (title, severity badge, category, status, attributed governorate). |
 | `src/App.tsx` | Page layout: form + governorate filter dropdown + list; refreshes the list on create. |
 
+## Design system (`client/src/ui/`) — liquid glass
+The premium "liquid glass" look (per the design brief). **Reuse these across the whole project.**
+
+| File | Role |
+|---|---|
+| `ui/GlassProvider.tsx` | Wraps the app; shares (via context) the page element all glass tracks the mouse against. |
+| `ui/Background.tsx` | Fixed dark gradient + 3 drifting blurred orbs (blue / violet / cyan) that the glass refracts. |
+| `ui/GlassButton.tsx` | True `LiquidGlass` pill button — hero CTAs only (standalone, never nested). |
+| `ui/GlassCard.tsx` | True `LiquidGlass` card — hero stat + feature cards. |
+| `ui/Nav.tsx`, `ui/Footer.tsx` | Full-width **CSS-glass** strips (`backdrop-blur`). |
+| `.glass` / `.glass-btn` (in `index.css`) | CSS glassmorphism for any container/button that holds other elements. |
+
+**Rule of thumb (a real `liquid-glass-react` constraint):** use true `LiquidGlass` only for *standalone* showcase surfaces. It **cannot be nested** (glass-inside-glass breaks rendering) and a `LiquidGlass` strip won't reliably stretch full-width — so nav, form, footer, and list cards use the lighter `.glass` / `.glass-btn` CSS instead. Same look, faster on mobile, cross-browser. `prefers-reduced-motion` freezes the orbs. Entrance animations: framer-motion fade-up on scroll per section.
+
 ## Key design decisions (Week 1)
 - **Geo-attribution is deterministic, not AI.** Which jurisdiction owns a report is an authorization boundary → computed by point-in-polygon, never by an LLM. (AI is reserved for *photo-severity* in Week 6.)
 - **Two-level jurisdiction with fallback.** `governorateId` is always set (24 governorates cover all of Tunisia); `municipalityId` is set only when an onboarded municipality contains the point. None onboarded yet → every report routes to its governorate.
