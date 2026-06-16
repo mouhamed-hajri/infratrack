@@ -1,0 +1,35 @@
+@startuml InfraTrack-Activity
+|Citizen|
+start
+:Open app;
+:Capture photo;
+:Confirm GPS location;
+:Choose category + describe;
+:Submit report;
+|System|
+:Validate input;
+:AI severity analysis;
+:Attribute jurisdiction (governorate / municipality);
+:Save Issue (status = REPORTED);
+:Record StatusEvent;
+|Authority|
+:Review in triage dashboard;
+if (Valid issue?) then (no)
+  :Set REJECTED;
+  |System|
+  :Record StatusEvent;
+  stop
+else (yes)
+  |Authority|
+  :Set ACKNOWLEDGED;
+  :Assign to staff;
+  :Set IN_PROGRESS;
+  :Carry out repair;
+  :Set RESOLVED;
+  |System|
+  :Record StatusEvent (per change);
+endif
+|Citizen|
+:View status updates / public timeline;
+stop
+@enduml

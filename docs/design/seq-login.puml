@@ -1,0 +1,18 @@
+@startuml InfraTrack-Seq-Login
+actor User
+participant "PWA (React)" as Client
+participant "API (Express)" as API
+database "Postgres" as DB
+
+User -> Client : enter email + password
+Client -> API : POST /api/auth/login
+API -> DB : find user by email
+DB --> API : user (passwordHash)
+alt password valid
+  API -> API : bcrypt.compare ok -> sign JWT(id, role)
+  API --> Client : 200 {token, user}
+  Client -> Client : store token
+else invalid
+  API --> Client : 401 Unauthorized
+end
+@enduml

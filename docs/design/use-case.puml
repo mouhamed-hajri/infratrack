@@ -1,0 +1,53 @@
+@startuml InfraTrack-UseCase
+left to right direction
+skinparam packageStyle rectangle
+actor Citizen
+actor "Authority\n(Municipality staff)" as Authority
+actor Admin
+actor "Vision AI" as AI
+Admin --|> Authority
+
+rectangle InfraTrack {
+  usecase "Register / Login" as UC_Auth
+  usecase "Report Issue" as UC_Report
+  usecase "Capture Photo" as UC_Photo
+  usecase "Auto-Geolocate (GPS)" as UC_Geo
+  usecase "AI Severity Analysis" as UC_AI
+  usecase "Attribute Jurisdiction" as UC_Attr
+  usecase "Track My Reports" as UC_Track
+  usecase "View Issues Map" as UC_Map
+  usecase "Upvote Issue" as UC_Upvote
+  usecase "View Public Timeline" as UC_Timeline
+  usecase "Triage Dashboard" as UC_Triage
+  usecase "Change Issue Status" as UC_Status
+  usecase "Assign Issue" as UC_Assign
+  usecase "Analytics & Heatmap" as UC_Analytics
+  usecase "Manage Users & Roles" as UC_Users
+  usecase "Onboard Municipality" as UC_Onboard
+  usecase "Notify Citizen" as UC_Notify
+}
+
+Citizen --> UC_Auth
+Citizen --> UC_Report
+Citizen --> UC_Track
+Citizen --> UC_Map
+Citizen --> UC_Upvote
+Citizen --> UC_Timeline
+
+UC_Report ..> UC_Photo : <<include>>
+UC_Report ..> UC_Geo   : <<include>>
+UC_Report ..> UC_AI    : <<include>>
+UC_Report ..> UC_Attr  : <<include>>
+AI --> UC_AI
+UC_Status ..> UC_Notify : <<include>>
+
+Authority --> UC_Auth
+Authority --> UC_Triage
+Authority --> UC_Map
+Authority --> UC_Status
+Authority --> UC_Assign
+Authority --> UC_Analytics
+
+Admin --> UC_Users
+Admin --> UC_Onboard
+@enduml

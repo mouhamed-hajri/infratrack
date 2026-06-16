@@ -1,0 +1,12 @@
+@startuml InfraTrack-State
+[*] --> REPORTED : citizen submits
+REPORTED --> ACKNOWLEDGED : authority acknowledges
+REPORTED --> REJECTED : invalid / duplicate
+ACKNOWLEDGED --> IN_PROGRESS : work assigned / started
+ACKNOWLEDGED --> REJECTED : invalid / duplicate
+IN_PROGRESS --> RESOLVED : repair complete
+RESOLVED --> IN_PROGRESS : reopened (problem recurs)
+RESOLVED --> [*]
+REJECTED --> [*]
+note right of REPORTED : every transition\nrecords a StatusEvent
+@enduml

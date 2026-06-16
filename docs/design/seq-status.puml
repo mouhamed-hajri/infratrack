@@ -1,0 +1,20 @@
+@startuml InfraTrack-Seq-Status
+actor Authority
+participant "PWA (React)" as Client
+participant "API (Express)" as API
+database "Postgres" as DB
+actor Citizen
+
+Authority -> Client : change status (e.g. -> IN_PROGRESS)
+Client -> API : PATCH /api/issues/:id/status {toStatus, note} + JWT
+API -> API : authorize (AUTHORITY/ADMIN, same jurisdiction)
+API -> API : validate transition (state machine)
+API -> DB : update Issue.status
+API -> DB : create StatusEvent {from,to,note,changedBy}
+DB --> API : ok
+API --> Client : 200 updated Issue
+... later ...
+Citizen -> Client : open my report / public timeline
+Client -> API : GET /api/issues/:id
+API --> Client : Issue + StatusEvent[] (the notification feed)
+@enduml

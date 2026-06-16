@@ -1,0 +1,71 @@
+@startuml InfraTrack-Class
+hide circle
+skinparam classAttributeIconSize 0
+
+enum Role { CITIZEN \n AUTHORITY \n ADMIN }
+enum Category { POTHOLE \n ROAD_DAMAGE \n TRAFFIC_LIGHT \n FLOODING \n SIGNAGE \n OTHER }
+enum Status { REPORTED \n ACKNOWLEDGED \n IN_PROGRESS \n RESOLVED \n REJECTED }
+enum Severity { LOW \n MEDIUM \n HIGH \n CRITICAL }
+
+class User {
+  +id : string
+  +name : string
+  +email : string
+  -passwordHash : string
+  +role : Role
+  +createdAt : DateTime
+}
+class Governorate {
+  +id : string
+  +name : string
+  +boundary : Json «GeoJSON»
+  +createdAt : DateTime
+}
+class Municipality {
+  +id : string
+  +name : string
+  +boundary : Json «GeoJSON»
+  +createdAt : DateTime
+}
+class Issue {
+  +id : string
+  +title : string
+  +description : string
+  +category : Category
+  +status : Status
+  +severity : Severity
+  +aiType : string?
+  +aiSeverity : Severity?
+  +aiConfidence : float?
+  +latitude : float
+  +longitude : float
+  +address : string?
+  +photoUrl : string?
+  +upvoteCount : int
+  +createdAt : DateTime
+  +updatedAt : DateTime
+}
+class StatusEvent {
+  +id : string
+  +fromStatus : Status?
+  +toStatus : Status
+  +note : string?
+  +createdAt : DateTime
+}
+class Upvote {
+  +id : string
+  +createdAt : DateTime
+}
+
+Governorate "1" --> "0..*" Municipality
+Governorate "1" --> "0..*" Issue
+Municipality "0..1" --> "0..*" Issue
+User "1" --> "0..*" Issue : reports >
+User "0..1" --> "0..*" Issue : assignedTo >
+User "0..1" --> "1" Governorate
+User "0..1" --> "1" Municipality
+Issue "1" --> "1..*" StatusEvent
+User "1" --> "0..*" StatusEvent : changedBy >
+Issue "1" --> "0..*" Upvote
+User "1" --> "0..*" Upvote
+@enduml

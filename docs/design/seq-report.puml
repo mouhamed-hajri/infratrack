@@ -1,0 +1,25 @@
+@startuml InfraTrack-Seq-Report
+actor Citizen
+participant "PWA (React)" as Client
+participant "API (Express)" as API
+participant Cloudinary
+participant "Vision AI" as AI
+participant "Geo service\n(point-in-polygon)" as Geo
+database "Postgres (Prisma)" as DB
+
+Citizen -> Client : fill form + capture photo
+Client -> Client : Geolocation API -> (lat,lng)
+Client -> Cloudinary : upload photo
+Cloudinary --> Client : photoUrl
+Client -> API : POST /api/issues {title,desc,category,lat,lng,photoUrl} + JWT
+API -> API : validate + auth -> reporterId
+API -> AI : analyze(photoUrl)
+AI --> API : {aiType, aiSeverity, aiConfidence}
+API -> Geo : attribute(lat,lng)
+Geo --> API : {governorateId, municipalityId?}
+API -> DB : create Issue (status = REPORTED)
+API -> DB : create StatusEvent (-> REPORTED)
+DB --> API : Issue
+API --> Client : 201 Issue
+Client --> Citizen : confirmation + jurisdiction + AI severity
+@enduml
