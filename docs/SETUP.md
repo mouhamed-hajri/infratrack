@@ -24,8 +24,8 @@ Legend: ✅ done · ⬜ needs you · 🔧 I do it when we start Week 1.
 - We'll spec the exact model with the `claude-api` skill in Week 6; you'll get an API key then. Nothing to do now.
 
 ## Repository
-- 🔧 `git init` + first commit of the planning docs (done at end of Phase 0).
-- ⬜ GitHub: create an **empty** repo named `infratrack` (no README/license — we already have files). Then tell me and I'll wire the remote + push. *(The repo is a graded deliverable.)*
+- ✅ `git init` + first commit of the planning docs.
+- ✅ GitHub: **private** repo created + pushed → <https://github.com/fourchika/infratrack> *(graded deliverable).*
 
 ## Data
 - ✅ Tunisia **governorate boundaries** downloaded → `server/prisma/data/tunisia-governorates.geojson`
