@@ -1,0 +1,101 @@
+// Prisma schema — InfraTrack (Week 1 slice).
+// Models added incrementally per the roadmap: StatusEvent + Upvote and the
+// optional Issue fields (photoUrl, address, ai*, assignedTo, upvoteCount) arrive
+// in their weeks. Keeping v1 lean so each migration tells a clear story.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CITIZEN
+  AUTHORITY
+  ADMIN
+}
+
+enum Category {
+  POTHOLE
+  ROAD_DAMAGE
+  TRAFFIC_LIGHT
+  FLOODING
+  SIGNAGE
+  OTHER
+}
+
+enum Status {
+  REPORTED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  RESOLVED
+  REJECTED
+}
+
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model User {
+  id             String        @id @default(cuid())
+  name           String
+  email          String        @unique
+  passwordHash   String
+  role           Role          @default(CITIZEN)
+  // An authority/admin can be scoped to a jurisdiction (used from Week 2).
+  governorateId  String?
+  governorate    Governorate?  @relation(fields: [governorateId], references: [id])
+  municipalityId String?
+  municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+  reportedIssues Issue[]
+  createdAt      DateTime      @default(now())
+}
+
+// 24 Tunisian governorates, seeded once. Permanent fallback jurisdiction.
+model Governorate {
+  id             String         @id @default(cuid())
+  name           String         @unique
+  boundary       Json // GeoJSON geometry (Polygon / MultiPolygon)
+  municipalities Municipality[]
+  issues         Issue[]
+  users          User[]
+  createdAt      DateTime       @default(now())
+}
+
+// Onboarded by an Admin over time (empty at launch).
+model Municipality {
+  id            String      @id @default(cuid())
+  name          String
+  boundary      Json
+  governorateId String
+  governorate   Governorate @relation(fields: [governorateId], references: [id])
+  issues        Issue[]
+  users         User[]
+  createdAt     DateTime    @default(now())
+}
+
+model Issue {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  category       Category
+  status         Status        @default(REPORTED)
+  severity       Severity      @default(MEDIUM)
+  latitude       Float
+  longitude      Float
+  // Attribution computed by point-in-polygon at creation time.
+  governorateId  String
+  governorate    Governorate   @relation(fields: [governorateId], references: [id])
+  municipalityId String?
+  municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+  reporterId     String
+  reporter       User          @relation(fields: [reporterId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
