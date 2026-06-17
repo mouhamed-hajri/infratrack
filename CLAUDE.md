@@ -45,6 +45,12 @@ A citizen snaps a road problem (photo + auto-GPS) → **AI grades the severity**
 1. Walking skeleton (create+list one issue end-to-end) → 2. Auth + roles → 3. Camera + GPS reporting → 4. Leaflet map → 5. Status workflow + timeline + authority triage → 6. 🤖 AI photo-severity → 7. 🏛️ Analytics + heatmap → 8. PWA install + deploy + deliverables (README, technical report, demo video) + mock-defense.
 *Working app by Week 5; differentiators 6–7; Week 8 is polish + graded deliverables.*
 
+## 🗺️ Knowledge graph workflow
+A `graphify-out/graph.json` knowledge graph of the entire codebase exists in the repo root.
+- **Before asking about the code:** query the graph instead of re-reading files.
+- **After any batch of changes:** run `/graphify . --update` to keep the graph current.
+- Graph outputs: `graphify-out/graph.html` (interactive), `graphify-out/GRAPH_REPORT.md` (audit).
+
 ## ▶️ START HERE (next action)
 1. Confirm Node.js is installed. Help the developer create a **free Neon Postgres** project and put its URL in `server/.env` as `DATABASE_URL`.
 2. **Week 1 — walking skeleton:** scaffold `client/` (Vite + React + Tailwind) and `server/` (Express + Prisma + Postgres), Prisma schema v1 (`User`, `Issue`), and ONE end-to-end slice: create an issue and list it (no photo/AI yet). Initialize git with clear commits. Start `CODEMAP.md`.

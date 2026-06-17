@@ -1,7 +1,20 @@
 @import "tailwindcss";
 
-:root {
-  color-scheme: dark;
+@theme {
+  --color-paper: #FAF6EF;
+  --color-paper-2: #F2EBDF;
+  --color-card: #FFFDF8;
+  --color-ink: #1C1A17;
+  --color-muted: #6B6356;
+  --color-brand: #0F5C5B;
+  --color-brand-deep: #0A4544;
+  --color-brand-tint: #0F5C5B14;
+  --color-clay: #C4622D;
+
+  --font-display: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html {
@@ -10,13 +23,10 @@ html {
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background:
-    radial-gradient(ellipse at top, #0a0f1e 0%, #050810 55%, #03040a 100%);
-  color: #e7ecf5;
-  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-  font-weight: 300;
-  letter-spacing: 0.01em;
+  min-height: 100dvh;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -24,62 +34,20 @@ body {
 h1,
 h2,
 h3 {
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: #f8fafc;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
-/* Background orbs the glass refracts */
-.orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(120px);
-  opacity: 0.4;
+p {
+  text-wrap: pretty;
 }
 
-@keyframes drift1 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(120px, 80px); }
-}
-@keyframes drift2 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(-110px, 60px); }
-}
-@keyframes drift3 {
-  0%, 100% { transform: translate(0, 0); }
-  50% { transform: translate(80px, -90px); }
+/* iPhone safe-area padding for the bottom nav */
+.pb-safe {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
 }
 
-/* Lightweight CSS glass for dense / repeating surfaces (fast + cross-browser).
-   The hairline is the glass rim, not a card border. */
-.glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px) saturate(130%);
-  -webkit-backdrop-filter: blur(16px) saturate(130%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
-}
-
-/* Reliable CSS glass button — used inside glass containers (nav, forms) where
-   nesting a LiquidGlass component would break its rendering. */
-.glass-btn {
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  color: #fff;
-  backdrop-filter: blur(12px) saturate(130%);
-  -webkit-backdrop-filter: blur(12px) saturate(130%);
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-.glass-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-.glass-btn:active {
-  transform: scale(0.97);
-}
-
-/* Respect users who prefer less motion: freeze the drifting orbs. */
 @media (prefers-reduced-motion: reduce) {
-  .orb { animation: none !important; }
   html { scroll-behavior: auto; }
 }

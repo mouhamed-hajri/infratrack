@@ -1,12 +1,27 @@
 import { useState, type FormEvent } from 'react'
 import { CATEGORIES, SEVERITIES, createIssue, type Issue } from '../lib/api'
+import { Surface } from '../ui/Surface'
+import { Button } from '../ui/Button'
+import { SeverityBadge } from './SeverityBadge'
 
-const field =
-  'w-full rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-white placeholder-white/40 outline-none transition focus:border-[#4f8ef7]/70'
-const opt = 'bg-[#0a0f1e] text-white'
+const CATEGORY_LABELS: Record<string, string> = {
+  POTHOLE: 'Pothole',
+  ROAD_DAMAGE: 'Road damage',
+  TRAFFIC_LIGHT: 'Traffic light',
+  FLOODING: 'Flooding',
+  SIGNAGE: 'Signage',
+  OTHER: 'Other',
+}
 
-// CSS-glass panel (not LiquidGlass): a LiquidGlass panel can't reliably size to a
-// tall form and breaks when it contains another glass element (the submit button).
+const SEVERITY_COLORS: Record<string, string> = {
+  LOW:      '#3F7D5B',
+  MEDIUM:   '#B8861E',
+  HIGH:     '#C4622D',
+  CRITICAL: '#A8321F',
+}
+
+const inputCls = 'w-full rounded-2xl bg-paper-2/50 px-4 py-3.5 text-sm text-ink placeholder-muted outline-none ring-1 ring-ink/10 transition focus:ring-2 focus:ring-clay/50'
+
 export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -41,42 +56,107 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
   }
 
   return (
-    <div className="glass p-8" style={{ borderRadius: '32px' }}>
-      <form onSubmit={submit} className="space-y-4">
-        <h2 className="text-xl font-semibold text-white">Report an issue</h2>
-        {error && <p className="rounded-lg bg-rose-500/15 px-3 py-2 text-sm text-rose-200">{error}</p>}
-        <input className={field} placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <textarea
-          className={field}
-          placeholder="Describe the problem"
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <select className={field} value={category} onChange={(e) => setCategory(e.target.value)}>
+    <Surface className="p-7">
+      <form onSubmit={submit} className="space-y-6">
+
+        {error && (
+          <p className="rounded-xl px-4 py-3 text-sm" style={{ color: '#A8321F', backgroundColor: '#A8321F12' }}>
+            {error}
+          </p>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted">Title</label>
+          <input
+            className={inputCls}
+            placeholder="e.g. Large pothole on Avenue Habib Bourguiba"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted">Description</label>
+          <textarea
+            className={inputCls}
+            placeholder="Describe the problem in a few words"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        {/* Category choice chips */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted">Category</label>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {CATEGORIES.map((c) => (
-              <option key={c} value={c} className={opt}>
-                {c}
-              </option>
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCategory(c)}
+                className={`rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                  category === c
+                    ? 'bg-brand text-paper shadow-[0_2px_8px_rgba(15,92,91,.25)]'
+                    : 'bg-paper-2/60 text-muted ring-1 ring-ink/10 hover:ring-ink/20'
+                }`}
+              >
+                {CATEGORY_LABELS[c] ?? c}
+              </button>
             ))}
-          </select>
-          <select className={field} value={severity} onChange={(e) => setSeverity(e.target.value)}>
-            {SEVERITIES.map((s) => (
-              <option key={s} value={s} className={opt}>
-                {s}
-              </option>
-            ))}
-          </select>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <input className={field} placeholder="Latitude" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
-          <input className={field} placeholder="Longitude" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
+
+        {/* Severity segmented control */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted">Severity</label>
+          <div className="flex rounded-2xl bg-paper-2/50 p-1 ring-1 ring-ink/10">
+            {SEVERITIES.map((s) => {
+              const active = severity === s
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSeverity(s)}
+                  className={`flex-1 rounded-xl py-2 text-xs font-semibold uppercase tracking-wide transition-all duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                    active ? 'shadow-[0_1px_4px_rgba(40,30,15,.1)]' : 'text-muted hover:text-ink'
+                  }`}
+                  style={active ? { backgroundColor: SEVERITY_COLORS[s] + '18', color: SEVERITY_COLORS[s] } : {}}
+                >
+                  {s}
+                </button>
+              )
+            })}
+          </div>
+          <div className="flex justify-end">
+            <SeverityBadge severity={severity} />
+          </div>
         </div>
-        <button type="submit" disabled={busy} className="glass-btn px-7 py-3 text-sm font-medium disabled:opacity-50">
+
+        {/* Location */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted">Location (auto-filled in Week 3)</label>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              className={`${inputCls} tabular-nums`}
+              placeholder="Latitude"
+              value={latitude}
+              onChange={(e) => setLatitude(e.target.value)}
+            />
+            <input
+              className={`${inputCls} tabular-nums`}
+              placeholder="Longitude"
+              value={longitude}
+              onChange={(e) => setLongitude(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <Button type="submit" disabled={busy}>
           {busy ? 'Submitting…' : 'Submit report'}
-        </button>
+        </Button>
       </form>
-    </div>
+    </Surface>
   )
 }

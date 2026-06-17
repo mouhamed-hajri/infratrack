@@ -2,6 +2,8 @@ import 'dotenv/config'
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
 import issuesRouter from './routes/issues'
+import authRouter from './routes/auth'
+import municipalitiesRouter from './routes/municipalities'
 import { loadBoundaries } from './geo'
 
 const app = express()
@@ -11,7 +13,9 @@ app.use(express.json())
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({ ok: true })
 })
+app.use('/api/auth', authRouter)
 app.use('/api/issues', issuesRouter)
+app.use('/api/municipalities', municipalitiesRouter)
 
 // JSON error handler (last middleware).
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
