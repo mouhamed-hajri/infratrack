@@ -29,7 +29,7 @@ export function Nav() {
         </div>
         {user ? (
           <div className="flex items-center gap-3">
-            <span className="text-sm text-muted">{user.name}</span>
+            <Link to="/profile" className="text-sm text-muted transition-colors hover:text-ink">{user.name}</Link>
             <Button variant="ghost" onClick={handleLogout} icon={false}>Sign out</Button>
           </div>
         ) : (

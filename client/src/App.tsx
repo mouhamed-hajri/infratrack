@@ -11,6 +11,7 @@ import { Register } from './pages/Register'
 import { MyReports } from './pages/MyReports'
 import { Dashboard } from './pages/Dashboard'
 import { Admin } from './pages/Admin'
+import { Profile } from './pages/Profile'
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/my-reports" element={<ProtectedRoute><MyReports /></ProtectedRoute>} />
           <Route path="/dashboard" element={<ProtectedRoute roles={['AUTHORITY', 'ADMIN']}><Dashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><Admin /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         </Routes>
         <Footer />
       </AuthProvider>

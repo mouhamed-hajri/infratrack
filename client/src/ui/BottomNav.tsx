@@ -42,6 +42,15 @@ export function BottomNav() {
             <span className="text-xs">Sign in</span>
           </Link>
         )}
+
+        {user && (
+          <Link to="/profile" className={`flex flex-col items-center gap-1 px-4 py-2 transition-colors ${active('/profile')}`}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-xs">Profile</span>
+          </Link>
+        )}
       </div>
     </nav>
   )

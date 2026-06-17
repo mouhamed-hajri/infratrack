@@ -53,6 +53,8 @@ model User {
   governorate    Governorate?  @relation(fields: [governorateId], references: [id])
   municipalityId String?
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+  cin            String?
+  cinVerified    Boolean       @default(false)
   reportedIssues Issue[]
   createdAt      DateTime      @default(now())
 }

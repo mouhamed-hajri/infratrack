@@ -11,7 +11,7 @@ const SECRET = process.env.JWT_SECRET ?? (() => {
 type JwtPayload = { sub: string; role: string }
 
 export type AuthedRequest = Request & {
-  user: { id: string; role: string; governorateId: string | null; municipalityId: string | null }
+  user: { id: string; role: string; governorateId: string | null; municipalityId: string | null; cin: string | null; cinVerified: boolean }
 }
 
 export function signToken(user: { id: string; role: string }) {
@@ -33,7 +33,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
   const user = await prisma.user.findUnique({
     where: { id: payload.sub },
-    select: { id: true, role: true, governorateId: true, municipalityId: true },
+    select: { id: true, role: true, governorateId: true, municipalityId: true, cin: true, cinVerified: true },
   })
   if (!user) {
     res.status(401).json({ error: 'user not found' })

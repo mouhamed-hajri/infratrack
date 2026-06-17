@@ -24,6 +24,8 @@ export type AuthUser = {
   role: string
   governorateId: string | null
   municipalityId: string | null
+  cin: string | null
+  cinVerified: boolean
 }
 
 // Reads JWT from localStorage for authenticated requests
@@ -101,6 +103,28 @@ export async function createIssue(input: NewIssue): Promise<Issue> {
     body: JSON.stringify(input),
   })
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Failed to create issue') }
+  return res.json()
+}
+
+// --- Profile management ---
+
+export async function updateProfile(data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }): Promise<AuthUser> {
+  const res = await fetch('/api/auth/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Update failed') }
+  return res.json()
+}
+
+export async function verifyCin(cin: string): Promise<AuthUser> {
+  const res = await fetch('/api/auth/verify-cin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ cin }),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Verification failed') }
   return res.json()
 }
 
