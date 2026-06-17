@@ -103,7 +103,7 @@ export function Profile() {
           <div className="md:col-span-1">
             <Surface className="p-6 flex flex-col items-center gap-4 text-center">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-brand text-3xl font-display font-semibold text-paper">
-                {user.name.charAt(0).toUpperCase()}
+                {(user.name || '?').charAt(0).toUpperCase()}
               </div>
               <div>
                 <p className="font-semibold text-ink">{user.name}</p>

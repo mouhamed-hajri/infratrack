@@ -11,35 +11,46 @@ type AuthState = {
 
 const AuthContext = createContext<AuthState | null>(null)
 
+function loadUser(): AuthUser | null {
+  try { return JSON.parse(localStorage.getItem('user') ?? 'null') } catch { return null }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null)
+  const [user, setUser] = useState<AuthUser | null>(loadUser)
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'))
 
-  // On mount: if a token exists, hydrate user via /api/auth/me
+  function applyUser(u: AuthUser | null) {
+    setUser(u)
+    if (u) localStorage.setItem('user', JSON.stringify(u))
+    else localStorage.removeItem('user')
+  }
+
+  // On mount: re-validate token and get fresh user from server
   useEffect(() => {
     if (!token) return
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setUser)
-      .catch(() => { localStorage.removeItem('token'); setToken(null) })
+      .then(applyUser)
+      .catch(() => { localStorage.removeItem('token'); localStorage.removeItem('user'); setToken(null); setUser(null) })
   }, [token])
 
   async function login(email: string, password: string) {
     const { token: t, user: u } = await apiLogin(email, password)
     localStorage.setItem('token', t)
     setToken(t)
-    setUser(u)
+    applyUser(u)
   }
 
   async function register(name: string, email: string, password: string) {
     const { token: t, user: u } = await apiRegister(name, email, password)
     localStorage.setItem('token', t)
     setToken(t)
-    setUser(u)
+    applyUser(u)
   }
 
   function logout() {
     localStorage.removeItem('token')
+    localStorage.removeItem('user')
     setToken(null)
     setUser(null)
   }
