@@ -2,10 +2,11 @@ import 'leaflet/dist/leaflet.css'
 import { useState, useRef, useEffect, type FormEvent } from 'react'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
-import { CATEGORIES, SEVERITIES, createIssue, uploadPhoto, cloudinaryConfigured, type Issue } from '../lib/api'
+import { CATEGORIES, SEVERITIES, createIssue, uploadPhoto, cloudinaryConfigured, analyzePhoto, type Issue, type AiAssessment } from '../lib/api'
 import { Surface } from '../ui/Surface'
 import { Button } from '../ui/Button'
 import { SeverityBadge } from './SeverityBadge'
+import { AiSuggestion } from './AiSuggestion'
 
 const CATEGORY_LABELS: Record<string, string> = {
   POTHOLE: 'Pothole', ROAD_DAMAGE: 'Road damage', TRAFFIC_LIGHT: 'Traffic light',
@@ -69,16 +70,30 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
   const [gpsCenter, setGpsCenter] = useState<[number, number] | null>(null) // only set by GPS, triggers map fly
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [aiStatus, setAiStatus] = useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
+  const [aiResult, setAiResult] = useState<AiAssessment | undefined>(undefined)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0] ?? null
     setPhoto(file)
+    setAiStatus('idle')
+    setAiResult(undefined)
     if (file) {
       const url = URL.createObjectURL(file)
       setPhotoPreview(url)
+      setAiStatus('analyzing')
+      try {
+        const result = await analyzePhoto(file)
+        setAiResult(result)
+        setAiStatus('done')
+        setCategory(result.category)
+        setSeverity(result.severity)
+      } catch {
+        setAiStatus('error')
+      }
     } else {
       setPhotoPreview(null)
     }
@@ -87,6 +102,8 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
   function removePhoto() {
     setPhoto(null)
     setPhotoPreview(null)
+    setAiStatus('idle')
+    setAiResult(undefined)
     if (fileRef.current) fileRef.current.value = ''
   }
 
@@ -131,12 +148,18 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
         title, description, category, severity,
         latitude: lat, longitude: lng,
         photoUrl, address: address || undefined,
+        aiCategory: aiResult?.category,
+        aiSeverity: aiResult?.severity,
+        aiConfidence: aiResult?.confidence,
+        aiSummary: aiResult?.summary,
       })
       onCreated(issue)
       setTitle('')
       setDescription('')
       setPhoto(null)
       setPhotoPreview(null)
+      setAiStatus('idle')
+      setAiResult(undefined)
       setLatitude('')
       setLongitude('')
       setAddress('')
@@ -200,6 +223,9 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
             </label>
           )}
         </div>
+
+        {/* AI suggestion panel */}
+        {aiStatus !== 'idle' && <AiSuggestion status={aiStatus} result={aiResult} />}
 
         {/* Title */}
         <div className="space-y-2">

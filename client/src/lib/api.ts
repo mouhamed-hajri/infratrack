@@ -9,6 +9,13 @@ export type StatusEvent = {
   createdAt: string
 }
 
+export type AiAssessment = {
+  category: string
+  severity: string
+  confidence: number
+  summary: string
+}
+
 export type Issue = {
   id: string
   title: string
@@ -20,6 +27,10 @@ export type Issue = {
   longitude: number
   photoUrl: string | null
   address: string | null
+  aiCategory: string | null
+  aiSeverity: string | null
+  aiConfidence: number | null
+  aiSummary: string | null
   governorate: { id: string; name: string } | null
   municipality: { id: string; name: string } | null
   statusEvents?: StatusEvent[]
@@ -127,6 +138,22 @@ export type NewIssue = {
   longitude: number
   photoUrl?: string
   address?: string
+  aiCategory?: string
+  aiSeverity?: string
+  aiConfidence?: number
+  aiSummary?: string
+}
+
+export async function analyzePhoto(file: File): Promise<AiAssessment> {
+  const { fileToBase64 } = await import('./image')
+  const imageBase64 = await fileToBase64(file)
+  const res = await fetch('/api/issues/analyze-photo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ imageBase64 }),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Analysis failed') }
+  return res.json()
 }
 
 export async function createIssue(input: NewIssue): Promise<Issue> {

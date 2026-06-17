@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../db'
 import { attribute } from '../geo'
 import { requireAuth, requireRole, type AuthedRequest } from '../auth'
+import { analyzePhoto } from '../lib/analyzePhoto'
 
 const router = Router()
 
@@ -63,11 +64,27 @@ router.get('/jurisdiction', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
   res.json(issues)
 })
 
+// POST /api/issues/analyze-photo — analyze a photo with AI, returns assessment
+// MUST be before /:id so it's not captured as an id route
+router.post('/analyze-photo', requireAuth, async (req, res) => {
+  const { imageBase64 } = req.body ?? {}
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    res.status(400).json({ error: 'imageBase64 is required' }); return
+  }
+  try {
+    const result = await analyzePhoto(imageBase64)
+    res.json(result)
+  } catch (err) {
+    console.error('analyzePhoto error:', err)
+    res.status(500).json({ error: 'Photo analysis failed' })
+  }
+})
+
 // GET /api/issues/:id — public detail with full timeline
 // MUST be after /mine and /jurisdiction so those aren't captured as :id
 router.get('/:id', async (req, res) => {
   const issue = await prisma.issue.findUnique({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     include: { ...jurisdictionInclude, ...statusEventsInclude },
   })
   if (!issue) { res.status(404).json({ error: 'Not found' }); return }
@@ -76,7 +93,7 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/issues — requires login + CIN verified
 router.post('/', requireAuth, async (req, res) => {
-  const { title, description, category, severity, latitude, longitude, photoUrl, address } = req.body ?? {}
+  const { title, description, category, severity, latitude, longitude, photoUrl, address, aiCategory, aiSeverity, aiConfidence, aiSummary } = req.body ?? {}
   const { id: reporterId, cinVerified } = (req as AuthedRequest).user
 
   if (!cinVerified) {
@@ -111,7 +128,7 @@ router.post('/', requireAuth, async (req, res) => {
   // Transaction: create issue + its initial REPORTED event atomically
   const issue = await prisma.$transaction(async (tx) => {
     const created = await tx.issue.create({
-      data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, photoUrl: photoUrl ?? null, address: address ?? null, reporterId, governorateId, municipalityId },
+      data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, photoUrl: photoUrl ?? null, address: address ?? null, aiCategory: aiCategory ?? null, aiSeverity: aiSeverity ?? null, aiConfidence: aiConfidence != null ? Number(aiConfidence) : null, aiSummary: aiSummary ?? null, reporterId, governorateId, municipalityId },
       include: { ...jurisdictionInclude, ...statusEventsInclude },
     })
     await tx.statusEvent.create({
@@ -134,7 +151,7 @@ router.patch('/:id/status', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
     res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` }); return
   }
 
-  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+  const issue = await prisma.issue.findUnique({ where: { id: String(req.params.id) } })
   if (!issue) { res.status(404).json({ error: 'Not found' }); return }
 
   // AUTHORITY is limited to their own governorate
@@ -165,7 +182,7 @@ router.patch('/:id/status', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
 // PATCH /api/issues/:id — reporter only, REPORTED status only (edit content)
 router.patch('/:id', requireAuth, async (req, res) => {
   const { id: userId } = (req as AuthedRequest).user
-  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+  const issue = await prisma.issue.findUnique({ where: { id: String(req.params.id) } })
   if (!issue) { res.status(404).json({ error: 'Not found' }); return }
   if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
   if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot edit after it has been acknowledged' }); return }
@@ -175,7 +192,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (severity && !SEVERITIES.includes(severity)) { res.status(400).json({ error: 'Invalid severity' }); return }
 
   const updated = await prisma.issue.update({
-    where: { id: req.params.id },
+    where: { id: String(req.params.id) },
     data: {
       ...(title && { title }),
       ...(description !== undefined && { description }),
@@ -191,11 +208,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
     const { id: userId } = (req as AuthedRequest).user
-    const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+    const issue = await prisma.issue.findUnique({ where: { id: String(req.params.id) } })
     if (!issue) { res.status(404).json({ error: 'Not found' }); return }
     if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
     if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot delete after it has been acknowledged' }); return }
-    await prisma.issue.delete({ where: { id: req.params.id } })
+    await prisma.issue.delete({ where: { id: String(req.params.id) } })
     res.status(204).end()
   } catch (err) {
     console.error('DELETE /issues/:id error:', err)

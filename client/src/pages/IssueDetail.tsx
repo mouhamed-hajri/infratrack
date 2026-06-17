@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getIssue, type Issue } from '../lib/api'
 import { SeverityBadge } from '../components/SeverityBadge'
+import { AiSuggestion } from '../components/AiSuggestion'
 import { StatusBadge } from '../components/StatusBadge'
 import { StatusTimeline } from '../components/StatusTimeline'
 import { StatusControl } from '../components/StatusControl'
@@ -85,6 +86,19 @@ export function IssueDetail() {
 
             {issue.address && (
               <p className="text-xs text-muted">📍 {issue.address}</p>
+            )}
+
+            {/* AI assessment block — shown when the issue has AI data */}
+            {issue.aiSeverity && (
+              <AiSuggestion
+                status="done"
+                result={{
+                  category: issue.aiCategory ?? '',
+                  severity: issue.aiSeverity,
+                  confidence: issue.aiConfidence ?? 0,
+                  summary: issue.aiSummary ?? '',
+                }}
+              />
             )}
 
             {/* Timeline */}

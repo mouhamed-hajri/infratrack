@@ -102,6 +102,10 @@ model Issue {
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
   photoUrl       String?
   address        String?
+  aiCategory     Category?
+  aiSeverity     Severity?
+  aiConfidence   Float?
+  aiSummary      String?
   reporterId     String
   reporter       User          @relation(fields: [reporterId], references: [id])
   statusEvents   StatusEvent[]

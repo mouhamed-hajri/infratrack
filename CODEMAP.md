@@ -1,7 +1,7 @@
 # CODEMAP — InfraTrack
 
 Plain-language map of every file: what it is and why it exists. Maintained from day one;
-grows into the technical report. **Status: Week 1** (walking skeleton + geo-attribution spine).
+grows into the technical report. **Status: Week 6** (AI photo-severity — Groq vision classifies damage).
 
 ## The request flow (how it all connects)
 ```
@@ -31,7 +31,8 @@ point-in-polygon — deterministic, computed server-side at creation time.
 | `prisma/seed.ts` | Seeds the 24 governorates, a demo citizen + demo authority, and 2 sample issues. Idempotent (upserts + count guard). |
 | `src/db.ts` | The single shared Prisma client. |
 | `src/geo.ts` | Loads boundaries into memory at startup; `attribute(lat,lng)` → `{governorateId, municipalityId}` via `@turf/boolean-point-in-polygon`. **GeoJSON/Turf use `[lng, lat]` order.** |
-| `src/routes/issues.ts` | `GET /api/issues` (list, optional `?governorateId=` filter) and `POST /api/issues` (validate → attribute → create). No auth yet: reports go to the seeded demo citizen. |
+| `src/routes/issues.ts` | All issue endpoints: list, mine, jurisdiction, detail, create, status-change, edit, delete. New: `POST /analyze-photo` (AI assessment, auth-gated). |
+| `src/lib/analyzePhoto.ts` | Sends a base64 image to Groq (llama-4-scout vision) in JSON-mode; returns `{category, severity, confidence, summary}`. Validates/clamps all AI output before returning. |
 | `src/index.ts` | Wires Express (CORS, JSON, routes, `/api/health`, JSON error handler), loads boundaries, listens on `:4000`. |
 
 ## Client (`client/`)
@@ -40,8 +41,11 @@ point-in-polygon — deterministic, computed server-side at creation time.
 | `vite.config.ts` | Vite + React + Tailwind v4 plugin + dev proxy (`/api` → `:4000`). |
 | `src/main.tsx` | React entry — renders `<App/>`, imports the stylesheet. (Vite scaffold) |
 | `src/index.css` | `@import "tailwindcss";` + page background. |
-| `src/lib/api.ts` | Typed `fetch` wrappers (`getIssues`, `createIssue`), the `Issue` type, and category/severity lists. |
-| `src/components/ReportForm.tsx` | The report form (title, description, category, severity, lat/lng); posts and shows errors. |
+| `src/lib/api.ts` | Typed `fetch` wrappers for all endpoints. `Issue` type includes `ai*` fields. `analyzePhoto(file)` sends to the server endpoint. |
+| `src/lib/image.ts` | `fileToBase64(file, maxDim)` — canvas resize to 1024px, returns JPEG data URL. Used before sending to the AI endpoint. |
+| `src/lib/severity.ts` | `SEVERITY_COLOR` map + `severityColor(s)` helper; single source of truth for severity hex colors. |
+| `src/components/ReportForm.tsx` | The report form. On photo select: auto-analyzes with AI, shows `<AiSuggestion>`, pre-fills category + severity. Gracefully degrades on error. |
+| `src/components/AiSuggestion.tsx` | Presentational panel: shows spinner while analyzing; confidence + category + summary when done; gentle error note on failure. |
 | `src/components/IssueList.tsx` | Renders issue cards (title, severity badge, category, status, attributed governorate). |
 | `src/App.tsx` | Page layout: form + governorate filter dropdown + list; refreshes the list on create. |
 
