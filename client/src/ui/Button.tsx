@@ -11,7 +11,7 @@ type Props = {
 
 export function Button({ children, onClick, type = 'button', variant = 'primary', icon = true, disabled }: Props) {
   const base =
-    'group inline-flex items-center gap-3 rounded-full pl-6 pr-2 py-2 text-sm font-medium ' +
+    `group inline-flex items-center justify-center gap-3 rounded-full ${icon ? 'pl-6 pr-2' : 'px-6'} py-2 text-sm font-medium ` +
     'transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.98] ' +
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-clay/60 disabled:opacity-50'
   const skin =
