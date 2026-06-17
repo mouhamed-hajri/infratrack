@@ -94,6 +94,8 @@ model Issue {
   governorate    Governorate   @relation(fields: [governorateId], references: [id])
   municipalityId String?
   municipality   Municipality? @relation(fields: [municipalityId], references: [id])
+  photoUrl       String?
+  address        String?
   reporterId     String
   reporter       User          @relation(fields: [reporterId], references: [id])
   createdAt      DateTime      @default(now())

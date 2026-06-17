@@ -48,7 +48,7 @@ router.get('/jurisdiction', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
 
 // POST /api/issues — requires login
 router.post('/', requireAuth, async (req, res) => {
-  const { title, description, category, severity, latitude, longitude } = req.body ?? {}
+  const { title, description, category, severity, latitude, longitude, photoUrl, address } = req.body ?? {}
   const { id: reporterId } = (req as AuthedRequest).user
 
   if (!title || !description || !category) {
@@ -77,7 +77,7 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   const issue = await prisma.issue.create({
-    data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, reporterId, governorateId, municipalityId },
+    data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, photoUrl: photoUrl ?? null, address: address ?? null, reporterId, governorateId, municipalityId },
     include: jurisdictionInclude,
   })
   res.status(201).json(issue)

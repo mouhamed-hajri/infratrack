@@ -28,18 +28,28 @@ export function IssueList({ issues }: { issues: Issue[] }) {
           />
 
           <div className="flex-1 p-5">
+            {issue.photoUrl && (
+              <img
+                src={issue.photoUrl}
+                alt={issue.title}
+                className="mb-4 h-40 w-full rounded-xl object-cover"
+              />
+            )}
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-display text-base font-semibold text-ink leading-snug">{issue.title}</h3>
               <SeverityBadge severity={issue.severity} />
             </div>
             <p className="mt-1.5 text-sm leading-relaxed text-muted">{issue.description}</p>
+            {issue.address && (
+              <p className="mt-1 text-xs text-muted truncate" title={issue.address}>📍 {issue.address}</p>
+            )}
             <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
               <span>{issue.category}</span>
               <span aria-hidden>·</span>
               <span>{issue.status}</span>
               <span aria-hidden>·</span>
               <span className="text-brand">
-                📍 {issue.governorate?.name ?? 'Unassigned'}
+                {issue.governorate?.name ?? 'Unassigned'}
                 {issue.municipality ? ` / ${issue.municipality.name}` : ''}
               </span>
             </div>
