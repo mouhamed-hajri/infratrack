@@ -1,29 +1,18 @@
-import nodemailer from 'nodemailer'
-
-// ponytail: if no SMTP config, log the link to console so dev flow still works
-function makeTransport() {
-  if (process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD) {
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
-    })
-  }
-  return null
-}
+import { Resend } from 'resend'
 
 const APP_URL = process.env.APP_URL ?? 'http://localhost:5173'
 
 export async function sendVerificationEmail(to: string, name: string, token: string) {
   const link = `${APP_URL}/verify-email?token=${token}`
-  const transport = makeTransport()
 
-  if (!transport) {
-    console.log(`\n📧 [EMAIL NOT CONFIGURED] Verification link for ${to}:\n${link}\n`)
+  if (!process.env.RESEND_API_KEY) {
+    console.log(`\n📧 [RESEND NOT CONFIGURED] Verification link for ${to}:\n${link}\n`)
     return
   }
 
-  await transport.sendMail({
-    from: `InfraTrack <${process.env.GMAIL_USER}>`,
+  const resend = new Resend(process.env.RESEND_API_KEY)
+  await resend.emails.send({
+    from: 'InfraTrack <onboarding@resend.dev>',
     to,
     subject: 'Verify your InfraTrack account',
     html: `
