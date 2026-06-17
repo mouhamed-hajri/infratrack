@@ -44,6 +44,9 @@ export function Nav() {
           <button onClick={() => scrollTo('issues')} className="relative transition-colors duration-200 hover:text-ink">
             Issues
           </button>
+          <Link to="/map" className={`relative transition-colors duration-200 ${active('/map')}`}>
+            Map
+          </Link>
           {user && (
             <Link to="/my-reports" className={`relative transition-colors duration-200 ${active('/my-reports')}`}>
               My reports

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getJurisdictionIssues, type Issue } from '../lib/api'
 import { IssueList } from '../components/IssueList'
+import { IssueMap } from '../components/IssueMap'
 import { Eyebrow } from '../ui/Eyebrow'
 import { Reveal } from '../ui/Reveal'
 import { useAuth } from '../auth/AuthContext'
@@ -25,7 +26,10 @@ export function Dashboard() {
         {loading ? (
           <p className="text-sm text-muted">Loading…</p>
         ) : (
-          <IssueList issues={issues} />
+          <>
+            <IssueMap issues={issues} className="h-[460px] mb-8" />
+            <IssueList issues={issues} />
+          </>
         )}
       </Reveal>
     </main>
