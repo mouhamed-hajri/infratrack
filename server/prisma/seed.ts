@@ -28,10 +28,12 @@ async function main() {
   // 2. Demo users with real bcrypt hashes (password: demo1234)
   const hash = await bcrypt.hash('demo1234', 10)
 
+  const verified = { emailVerified: true, cinVerified: true, cin: '12345678' }
+
   const citizen = await prisma.user.upsert({
     where: { email: 'citizen@demo.tn' },
-    update: { passwordHash: hash },
-    create: { name: 'Demo Citizen', email: 'citizen@demo.tn', passwordHash: hash, role: Role.CITIZEN },
+    update: { passwordHash: hash, ...verified },
+    create: { name: 'Demo Citizen', email: 'citizen@demo.tn', passwordHash: hash, role: Role.CITIZEN, phone: '+21620000001', ...verified },
   })
 
   const monFeature = govFeatureAt(35.778, 10.826, fc)
@@ -41,20 +43,17 @@ async function main() {
 
   await prisma.user.upsert({
     where: { email: 'authority@demo.tn' },
-    update: { passwordHash: hash, governorateId: monastir?.id ?? null },
+    update: { passwordHash: hash, governorateId: monastir?.id ?? null, ...verified },
     create: {
-      name: 'Demo Authority',
-      email: 'authority@demo.tn',
-      passwordHash: hash,
-      role: Role.AUTHORITY,
-      governorateId: monastir?.id ?? null,
+      name: 'Demo Authority', email: 'authority@demo.tn', passwordHash: hash,
+      role: Role.AUTHORITY, governorateId: monastir?.id ?? null, phone: '+21620000002', ...verified,
     },
   })
 
   await prisma.user.upsert({
     where: { email: 'admin@demo.tn' },
-    update: { passwordHash: hash },
-    create: { name: 'Demo Admin', email: 'admin@demo.tn', passwordHash: hash, role: Role.ADMIN },
+    update: { passwordHash: hash, ...verified },
+    create: { name: 'Demo Admin', email: 'admin@demo.tn', passwordHash: hash, role: Role.ADMIN, phone: '+21620000003', ...verified },
   })
 
   console.log('Seeded demo users (citizen / authority@monastir / admin) — password: demo1234')

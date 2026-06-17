@@ -46,10 +46,15 @@ router.get('/jurisdiction', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
   res.json(issues)
 })
 
-// POST /api/issues — requires login
+// POST /api/issues — requires login + CIN verified
 router.post('/', requireAuth, async (req, res) => {
   const { title, description, category, severity, latitude, longitude, photoUrl, address } = req.body ?? {}
-  const { id: reporterId } = (req as AuthedRequest).user
+  const { id: reporterId, cinVerified } = (req as AuthedRequest).user
+
+  if (!cinVerified) {
+    res.status(403).json({ error: 'You must verify your identity (selfie + CIN card) before submitting reports.' })
+    return
+  }
 
   if (!title || !description || !category) {
     res.status(400).json({ error: 'title, description and category are required' })

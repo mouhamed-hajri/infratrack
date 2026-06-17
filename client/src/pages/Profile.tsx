@@ -23,6 +23,7 @@ export function Profile() {
   // Info section
   const [name, setName] = useState(user?.name ?? '')
   const [email, setEmail] = useState(user?.email ?? '')
+  const [phone, setPhone] = useState(user?.phone ?? '')
   const [infoMsg, setInfoMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [infobusy, setInfoBusy] = useState(false)
 
@@ -50,7 +51,7 @@ export function Profile() {
     setInfoMsg(null)
     setInfoBusy(true)
     try {
-      await updateProfile({ name: name.trim(), email: email.trim() })
+      await updateProfile({ name: name.trim(), email: email.trim(), phone: phone.trim() })
       setInfoMsg({ type: 'success', text: 'Profile updated.' })
     } catch (err) {
       setInfoMsg({ type: 'error', text: err instanceof Error ? err.message : 'Update failed' })
@@ -183,6 +184,10 @@ export function Profile() {
                 <div className="space-y-2">
                   <label className="text-xs font-medium uppercase tracking-wide text-muted">Email</label>
                   <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-wide text-muted">Phone number</label>
+                  <input className={inputCls} type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
                 </div>
                 <Button type="submit" disabled={infobusy} icon={false}>{infobusy ? 'Saving…' : 'Save changes'}</Button>
               </form>

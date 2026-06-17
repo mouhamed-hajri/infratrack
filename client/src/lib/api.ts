@@ -24,8 +24,10 @@ export type AuthUser = {
   role: string
   governorateId: string | null
   municipalityId: string | null
+  phone: string | null
   cin: string | null
   cinVerified: boolean
+  emailVerified: boolean
 }
 
 // Reads JWT from localStorage for authenticated requests
@@ -45,13 +47,19 @@ export async function getIssues(governorateId?: string): Promise<Issue[]> {
 
 // --- Auth ---
 
-export async function register(name: string, email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+export async function register(name: string, email: string, password: string, phone: string): Promise<{ message: string }> {
   const res = await fetch('/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, phone }),
   })
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Registration failed') }
+  return res.json()
+}
+
+export async function verifyEmail(token: string): Promise<{ success: boolean; message: string }> {
+  const res = await fetch(`/api/auth/verify-email?token=${encodeURIComponent(token)}`)
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Verification failed') }
   return res.json()
 }
 
@@ -108,7 +116,7 @@ export async function createIssue(input: NewIssue): Promise<Issue> {
 
 // --- Profile management ---
 
-export async function updateProfile(data: { name?: string; email?: string; currentPassword?: string; newPassword?: string }): Promise<AuthUser> {
+export async function updateProfile(data: { name?: string; email?: string; phone?: string; currentPassword?: string; newPassword?: string }): Promise<AuthUser> {
   const res = await fetch('/api/auth/me', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },

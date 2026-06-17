@@ -12,6 +12,7 @@ import { MyReports } from './pages/MyReports'
 import { Dashboard } from './pages/Dashboard'
 import { Admin } from './pages/Admin'
 import { Profile } from './pages/Profile'
+import { VerifyEmail } from './pages/VerifyEmail'
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute roles={['AUTHORITY', 'ADMIN']}><Dashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute roles={['ADMIN']}><Admin /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
         </Routes>
         <Footer />
       </AuthProvider>

@@ -5,7 +5,7 @@ type AuthState = {
   user: AuthUser | null
   token: string | null
   login: (email: string, password: string) => Promise<void>
-  register: (name: string, email: string, password: string) => Promise<void>
+  register: (name: string, email: string, password: string, phone: string) => Promise<{ message: string }>
   logout: () => void
   updateUser: (u: AuthUser) => void
 }
@@ -42,11 +42,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     applyUser(u)
   }
 
-  async function register(name: string, email: string, password: string) {
-    const { token: t, user: u } = await apiRegister(name, email, password)
-    localStorage.setItem('token', t)
-    setToken(t)
-    applyUser(u)
+  async function register(name: string, email: string, password: string, phone: string) {
+    return apiRegister(name, email, password, phone)
+    // no auto-login — user must verify email first
   }
 
   function logout() {
