@@ -1,4 +1,7 @@
-import { useState, useRef, type FormEvent } from 'react'
+import 'leaflet/dist/leaflet.css'
+import { useState, useRef, useEffect, type FormEvent } from 'react'
+import L from 'leaflet'
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet'
 import { CATEGORIES, SEVERITIES, createIssue, uploadPhoto, cloudinaryConfigured, type Issue } from '../lib/api'
 import { Surface } from '../ui/Surface'
 import { Button } from '../ui/Button'
@@ -29,6 +32,30 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
   }
 }
 
+const pickerIcon = L.divIcon({
+  className: 'infratrack-pin',
+  html: '<span style="background:#0F5C5B"></span>',
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+})
+
+// Syncs the map view when GPS fires (coords change from outside the map)
+function MapFlyTo({ lat, lng }: { lat: number | null; lng: number | null }) {
+  const map = useMap()
+  const prev = useRef<string>('')
+  useEffect(() => {
+    if (lat === null || lng === null) return
+    const key = `${lat},${lng}`
+    if (key !== prev.current) { prev.current = key; map.flyTo([lat, lng], 15) }
+  }, [lat, lng, map])
+  return null
+}
+
+function ClickHandler({ onChange }: { onChange: (lat: number, lng: number) => void }) {
+  useMapEvents({ click: (e) => onChange(e.latlng.lat, e.latlng.lng) })
+  return null
+}
+
 export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -38,6 +65,7 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
   const [longitude, setLongitude] = useState('')
   const [address, setAddress] = useState('')
   const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
+  const [gpsCenter, setGpsCenter] = useState<[number, number] | null>(null) // only set by GPS, triggers map fly
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -73,6 +101,7 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
         const lng = pos.coords.longitude
         setLatitude(lat.toFixed(6))
         setLongitude(lng.toFixed(6))
+        setGpsCenter([lat, lng])
         setGeoStatus('done')
         const addr = await reverseGeocode(lat, lng)
         if (addr) setAddress(addr)
@@ -114,6 +143,7 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
       setLongitude('')
       setAddress('')
       setGeoStatus('idle')
+      setGpsCenter(null)
       if (fileRef.current) fileRef.current.value = ''
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
@@ -240,49 +270,77 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
           <div className="flex justify-end"><SeverityBadge severity={severity} /></div>
         </div>
 
-        {/* GPS location */}
+        {/* Location — map picker + GPS */}
         <div className="space-y-2">
-          <label className="text-xs font-medium uppercase tracking-wide text-muted">Location</label>
-          {geoStatus === 'done' && address && (
-            <p className="rounded-xl bg-brand-tint px-4 py-2.5 text-sm text-brand leading-snug">{address}</p>
-          )}
-          <div className="flex gap-2">
-            <div className="grid flex-1 grid-cols-2 gap-2">
-              <input
-                className={`${inputCls} tabular-nums`}
-                placeholder="Latitude"
-                value={latitude}
-                onChange={(e) => setLatitude(e.target.value)}
-              />
-              <input
-                className={`${inputCls} tabular-nums`}
-                placeholder="Longitude"
-                value={longitude}
-                onChange={(e) => setLongitude(e.target.value)}
-              />
-            </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-medium uppercase tracking-wide text-muted">Location</label>
             <button
               type="button"
               onClick={detectLocation}
               disabled={geoStatus === 'loading'}
-              className="flex shrink-0 items-center justify-center rounded-2xl bg-brand px-4 text-paper transition hover:bg-brand-deep disabled:opacity-50"
-              title="Detect my location"
+              className="flex items-center gap-1.5 rounded-xl bg-brand px-3 py-1.5 text-xs font-medium text-paper transition hover:bg-brand-deep disabled:opacity-50"
             >
               {geoStatus === 'loading' ? (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin">
                   <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                 </svg>
               ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-                  <path d="m4.93 4.93 2.12 2.12M16.95 16.95l2.12 2.12M19.07 4.93l-2.12 2.12M7.05 16.95l-2.12 2.12" />
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
                 </svg>
               )}
+              {geoStatus === 'loading' ? 'Detecting…' : 'Use my GPS'}
             </button>
           </div>
+
+          {/* Interactive map picker */}
+          <div className="relative z-0 isolate overflow-hidden rounded-2xl ring-1 ring-ink/10" style={{ height: 260 }}>
+            <MapContainer
+              center={[34.0, 9.5]}
+              zoom={5}
+              scrollWheelZoom
+              className="h-full w-full"
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              />
+              <ClickHandler onChange={(lat, lng) => {
+                setLatitude(lat.toFixed(6))
+                setLongitude(lng.toFixed(6))
+                reverseGeocode(lat, lng).then(addr => { if (addr) setAddress(addr) })
+              }} />
+              <MapFlyTo lat={gpsCenter?.[0] ?? null} lng={gpsCenter?.[1] ?? null} />
+              {latitude && longitude && (
+                <Marker
+                  position={[Number(latitude), Number(longitude)]}
+                  icon={pickerIcon}
+                  draggable
+                  eventHandlers={{
+                    dragend: (e) => {
+                      const { lat, lng } = (e.target as L.Marker).getLatLng()
+                      setLatitude(lat.toFixed(6))
+                      setLongitude(lng.toFixed(6))
+                      reverseGeocode(lat, lng).then(addr => { if (addr) setAddress(addr) })
+                    },
+                  }}
+                />
+              )}
+            </MapContainer>
+            {!latitude && (
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                <span className="rounded-xl bg-ink/60 px-3 py-1.5 text-xs text-paper backdrop-blur-sm">
+                  Tap the map or use GPS to pin your location
+                </span>
+              </div>
+            )}
+          </div>
+
+          {address && (
+            <p className="rounded-xl bg-brand-tint px-4 py-2.5 text-sm text-brand leading-snug">{address}</p>
+          )}
           {geoStatus === 'error' && (
-            <p className="text-xs text-clay">Could not detect location — please enter coordinates manually.</p>
+            <p className="text-xs text-clay">Could not detect location — tap the map to place a pin manually.</p>
           )}
         </div>
 

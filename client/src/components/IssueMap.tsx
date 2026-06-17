@@ -70,17 +70,17 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
         {showLocate && <LocateButton />}
         {valid.map((issue) => (
           <Marker key={issue.id} position={[issue.latitude, issue.longitude]} icon={iconFor(issue.severity)}>
-            <Popup>
-              <div className="min-w-[200px] space-y-1.5 p-1">
-                <p className="font-semibold text-ink leading-tight">{issue.title}</p>
+            <Popup minWidth={240} maxWidth={280}>
+              <div style={{ width: 240 }} className="space-y-1.5 py-0.5">
+                {issue.photoUrl && (
+                  <img src={issue.photoUrl} alt="issue" style={{ width: 240, height: 140, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 -12px 8px', width: 'calc(100% + 24px)' }} />
+                )}
+                <p style={{ fontWeight: 600, lineHeight: 1.3, marginBottom: 4 }}>{issue.title}</p>
                 <SeverityBadge severity={issue.severity} />
-                <p className="text-xs text-muted">
+                <p style={{ fontSize: 11, color: '#6B6356', marginTop: 4 }}>
                   {issue.category.replace(/_/g, ' ')} · {issue.status.replace(/_/g, ' ')}
                 </p>
-                {issue.address && <p className="text-xs text-muted">{issue.address}</p>}
-                {issue.photoUrl && (
-                  <img src={issue.photoUrl} alt="issue" className="mt-2 h-24 w-full rounded-lg object-cover" />
-                )}
+                {issue.address && <p style={{ fontSize: 11, color: '#6B6356' }}>{issue.address}</p>}
               </div>
             </Popup>
           </Marker>
