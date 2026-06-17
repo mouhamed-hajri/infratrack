@@ -7,10 +7,27 @@ const router = Router()
 
 const CATEGORIES = ['POTHOLE', 'ROAD_DAMAGE', 'TRAFFIC_LIGHT', 'FLOODING', 'SIGNAGE', 'OTHER']
 const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+const STATUSES = ['REPORTED', 'ACKNOWLEDGED', 'IN_PROGRESS', 'RESOLVED', 'REJECTED']
+
+// Valid transitions: what states can follow the current state
+const NEXT: Record<string, string[]> = {
+  REPORTED:     ['ACKNOWLEDGED', 'REJECTED'],
+  ACKNOWLEDGED: ['IN_PROGRESS', 'REJECTED'],
+  IN_PROGRESS:  ['RESOLVED', 'REJECTED'],
+  RESOLVED:     [],
+  REJECTED:     [],
+}
 
 const jurisdictionInclude = {
   governorate: { select: { id: true, name: true } },
   municipality: { select: { id: true, name: true } },
+}
+
+const statusEventsInclude = {
+  statusEvents: {
+    orderBy: { createdAt: 'asc' as const },
+    include: { actor: { select: { id: true, name: true, role: true } } },
+  },
 }
 
 // GET /api/issues — public, newest first
@@ -30,7 +47,7 @@ router.get('/mine', requireAuth, async (req, res) => {
   const issues = await prisma.issue.findMany({
     where: { reporterId: id },
     orderBy: { createdAt: 'desc' },
-    include: jurisdictionInclude,
+    include: { ...jurisdictionInclude, ...statusEventsInclude },
   })
   res.json(issues)
 })
@@ -41,9 +58,20 @@ router.get('/jurisdiction', requireAuth, requireRole('AUTHORITY', 'ADMIN'), asyn
   const issues = await prisma.issue.findMany({
     where: role === 'ADMIN' ? undefined : { governorateId: governorateId ?? '' },
     orderBy: { createdAt: 'desc' },
-    include: jurisdictionInclude,
+    include: { ...jurisdictionInclude, ...statusEventsInclude },
   })
   res.json(issues)
+})
+
+// GET /api/issues/:id — public detail with full timeline
+// MUST be after /mine and /jurisdiction so those aren't captured as :id
+router.get('/:id', async (req, res) => {
+  const issue = await prisma.issue.findUnique({
+    where: { id: req.params.id },
+    include: { ...jurisdictionInclude, ...statusEventsInclude },
+  })
+  if (!issue) { res.status(404).json({ error: 'Not found' }); return }
+  res.json(issue)
 })
 
 // POST /api/issues — requires login + CIN verified
@@ -55,7 +83,6 @@ router.post('/', requireAuth, async (req, res) => {
     res.status(403).json({ error: 'You must verify your identity (selfie + CIN card) before submitting reports.' })
     return
   }
-
   if (!title || !description || !category) {
     res.status(400).json({ error: 'title, description and category are required' })
     return
@@ -81,14 +108,61 @@ router.post('/', requireAuth, async (req, res) => {
     return
   }
 
-  const issue = await prisma.issue.create({
-    data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, photoUrl: photoUrl ?? null, address: address ?? null, reporterId, governorateId, municipalityId },
-    include: jurisdictionInclude,
+  // Transaction: create issue + its initial REPORTED event atomically
+  const issue = await prisma.$transaction(async (tx) => {
+    const created = await tx.issue.create({
+      data: { title, description, category, severity: severity ?? 'MEDIUM', latitude: lat, longitude: lng, photoUrl: photoUrl ?? null, address: address ?? null, reporterId, governorateId, municipalityId },
+      include: { ...jurisdictionInclude, ...statusEventsInclude },
+    })
+    await tx.statusEvent.create({
+      data: { issueId: created.id, status: 'REPORTED', actorId: reporterId },
+    })
+    return tx.issue.findUnique({
+      where: { id: created.id },
+      include: { ...jurisdictionInclude, ...statusEventsInclude },
+    })
   })
   res.status(201).json(issue)
 })
 
-// PATCH /api/issues/:id — reporter only, REPORTED status only
+// PATCH /api/issues/:id/status — authority/admin only, jurisdiction-scoped
+router.patch('/:id/status', requireAuth, requireRole('AUTHORITY', 'ADMIN'), async (req, res) => {
+  const { id: actorId, role, governorateId: actorGovId } = (req as AuthedRequest).user
+  const { status: target, note } = req.body ?? {}
+
+  if (!target || !STATUSES.includes(target)) {
+    res.status(400).json({ error: `status must be one of: ${STATUSES.join(', ')}` }); return
+  }
+
+  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+  if (!issue) { res.status(404).json({ error: 'Not found' }); return }
+
+  // AUTHORITY is limited to their own governorate
+  if (role === 'AUTHORITY' && issue.governorateId !== actorGovId) {
+    res.status(403).json({ error: 'Issue is outside your jurisdiction' }); return
+  }
+
+  if (!NEXT[issue.status]?.includes(target)) {
+    res.status(400).json({ error: `Cannot transition from ${issue.status} to ${target}` }); return
+  }
+  if (target === 'REJECTED' && !note?.trim()) {
+    res.status(400).json({ error: 'A reason is required when rejecting an issue' }); return
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.issue.update({ where: { id: issue.id }, data: { status: target } })
+    await tx.statusEvent.create({
+      data: { issueId: issue.id, status: target, note: note?.trim() || null, actorId },
+    })
+    return tx.issue.findUnique({
+      where: { id: issue.id },
+      include: { ...jurisdictionInclude, ...statusEventsInclude },
+    })
+  })
+  res.json(updated)
+})
+
+// PATCH /api/issues/:id — reporter only, REPORTED status only (edit content)
 router.patch('/:id', requireAuth, async (req, res) => {
   const { id: userId } = (req as AuthedRequest).user
   const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })

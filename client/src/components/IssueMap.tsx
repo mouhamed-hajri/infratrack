@@ -1,10 +1,12 @@
 import 'leaflet/dist/leaflet.css'
 import L from 'leaflet'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { Issue } from '../lib/api'
 import { severityColor } from '../lib/severity'
 import { SeverityBadge } from './SeverityBadge'
+import { StatusBadge } from './StatusBadge'
+import { PhotoLightbox } from './PhotoLightbox'
 
 // ponytail: divIcon avoids the Vite marker-PNG 404 and gives severity color
 const iconFor = (severity: string) =>
@@ -15,6 +17,7 @@ const iconFor = (severity: string) =>
     iconAnchor: [11, 11],
     popupAnchor: [0, -14],
   })
+
 
 function FitBounds({ issues }: { issues: Issue[] }) {
   const map = useMap()
@@ -51,7 +54,8 @@ interface Props {
 }
 
 export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) {
-  const valid = issues.filter((i) => i.latitude && i.longitude)
+  const valid = issues.filter((i) => i.latitude && i.longitude && i.status !== 'RESOLVED' && i.status !== 'REJECTED')
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   return (
     // ponytail: z-0 + isolate contains Leaflet's z-700 panes beneath fixed z-50 navbars
@@ -59,6 +63,9 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
       <MapContainer
         center={[34.0, 9.5]}
         zoom={6}
+        minZoom={5}
+        maxBounds={[[29.5, 7.0], [38.0, 12.5]]}
+        maxBoundsViscosity={1.0}
         scrollWheelZoom
         className="h-full w-full"
       >
@@ -73,19 +80,31 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
             <Popup minWidth={240} maxWidth={280}>
               <div style={{ width: 240 }} className="space-y-1.5 py-0.5">
                 {issue.photoUrl && (
-                  <img src={issue.photoUrl} alt="issue" style={{ width: 240, height: 140, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 -12px 8px', width: 'calc(100% + 24px)' }} />
+                  <img
+                    src={issue.photoUrl}
+                    alt="issue"
+                    style={{ width: 'calc(100% + 24px)', height: 140, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 -12px 8px', cursor: 'zoom-in' }}
+                    onClick={() => setLightbox(issue.photoUrl!)}
+                  />
                 )}
                 <p style={{ fontWeight: 600, lineHeight: 1.3, marginBottom: 4 }}>{issue.title}</p>
-                <SeverityBadge severity={issue.severity} />
-                <p style={{ fontSize: 11, color: '#6B6356', marginTop: 4 }}>
-                  {issue.category.replace(/_/g, ' ')} · {issue.status.replace(/_/g, ' ')}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <SeverityBadge severity={issue.severity} />
+                  <StatusBadge status={issue.status} />
+                </div>
+                <p style={{ fontSize: 11, color: '#6B6356' }}>
+                  {issue.category.replace(/_/g, ' ')}
                 </p>
                 {issue.address && <p style={{ fontSize: 11, color: '#6B6356' }}>{issue.address}</p>}
+                <a href={`/issues/${issue.id}`} style={{ fontSize: 12, color: '#0F5C5B', marginTop: 6, display: 'inline-block' }}>
+                  View timeline →
+                </a>
               </div>
             </Popup>
           </Marker>
         ))}
       </MapContainer>
+      {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   )
 }

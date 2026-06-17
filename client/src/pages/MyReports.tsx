@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getMyIssues, updateIssue, deleteIssue, CATEGORIES, SEVERITIES, type Issue } from '../lib/api'
 import { SeverityBadge } from '../components/SeverityBadge'
+import { StatusBadge } from '../components/StatusBadge'
+import { PhotoLightbox } from '../components/PhotoLightbox'
 import { Eyebrow } from '../ui/Eyebrow'
 import { Reveal } from '../ui/Reveal'
 import { Surface } from '../ui/Surface'
@@ -10,6 +13,16 @@ const CAT_LABEL: Record<string, string> = { POTHOLE: 'Pothole', ROAD_DAMAGE: 'Ro
 const inputCls = 'w-full rounded-xl bg-paper-2/50 px-3 py-2.5 text-sm text-ink outline-none ring-1 ring-ink/10 transition focus:ring-2 focus:ring-clay/50'
 
 type Draft = { title: string; description: string; category: string; severity: string }
+
+function ClickablePhoto({ src, alt }: { src: string; alt: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <img src={src} alt={alt} className="mb-4 h-40 w-full cursor-zoom-in rounded-xl object-cover" onClick={() => setOpen(true)} />
+      {open && <PhotoLightbox src={src} alt={alt} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
 
 function IssueCard({
   issue, onUpdated, onDeleted,
@@ -83,20 +96,21 @@ function IssueCard({
           </div>
         ) : (
           <>
-            {issue.photoUrl && <img src={issue.photoUrl} alt={issue.title} className="mb-4 h-40 w-full rounded-xl object-cover" />}
+            {issue.photoUrl && <ClickablePhoto src={issue.photoUrl} alt={issue.title} />}
             <div className="flex items-start justify-between gap-3">
               <h3 className="font-display text-base font-semibold text-ink leading-snug">{issue.title}</h3>
               <SeverityBadge severity={issue.severity} />
             </div>
             <p className="mt-1.5 text-sm leading-relaxed text-muted">{issue.description}</p>
             {issue.address && <p className="mt-1 text-xs text-muted truncate">📍 {issue.address}</p>}
-            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
-              <span>{CAT_LABEL[issue.category] ?? issue.category}</span>
-              <span>·</span>
-              <span>{issue.status.replace(/_/g, ' ')}</span>
-              <span>·</span>
-              <span className="text-brand">{issue.governorate?.name ?? 'Unassigned'}</span>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <StatusBadge status={issue.status} />
+              <span className="text-xs text-muted">{CAT_LABEL[issue.category] ?? issue.category}</span>
+              <span className="text-xs text-brand">{issue.governorate?.name ?? 'Unassigned'}</span>
             </div>
+            <Link to={`/issues/${issue.id}`} className="mt-3 inline-flex items-center gap-1 text-xs text-brand hover:underline">
+              View timeline →
+            </Link>
 
             {canMutate && (
               <div className="mt-4 flex items-center gap-2">

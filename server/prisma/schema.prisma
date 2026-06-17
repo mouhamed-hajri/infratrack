@@ -59,6 +59,7 @@ model User {
   emailVerified          Boolean  @default(false)
   emailVerificationToken String?  @unique
   reportedIssues         Issue[]
+  statusEvents           StatusEvent[]
   createdAt              DateTime @default(now())
 }
 
@@ -103,6 +104,18 @@ model Issue {
   address        String?
   reporterId     String
   reporter       User          @relation(fields: [reporterId], references: [id])
+  statusEvents   StatusEvent[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+model StatusEvent {
+  id        String   @id @default(cuid())
+  issueId   String
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  status    Status
+  note      String?
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
 }

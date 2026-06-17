@@ -1,6 +1,14 @@
 export const CATEGORIES = ['POTHOLE', 'ROAD_DAMAGE', 'TRAFFIC_LIGHT', 'FLOODING', 'SIGNAGE', 'OTHER'] as const
 export const SEVERITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const
 
+export type StatusEvent = {
+  id: string
+  status: string
+  note: string | null
+  actor: { id: string; name: string; role: string } | null
+  createdAt: string
+}
+
 export type Issue = {
   id: string
   title: string
@@ -14,6 +22,7 @@ export type Issue = {
   address: string | null
   governorate: { id: string; name: string } | null
   municipality: { id: string; name: string } | null
+  statusEvents?: StatusEvent[]
   createdAt: string
 }
 
@@ -37,6 +46,22 @@ function authHeaders(): Record<string, string> {
 }
 
 // --- Public ---
+
+export async function getIssue(id: string): Promise<Issue> {
+  const res = await fetch(`/api/issues/${id}`)
+  if (!res.ok) throw new Error('Issue not found')
+  return res.json()
+}
+
+export async function updateIssueStatus(id: string, status: string, note?: string): Promise<Issue> {
+  const res = await fetch(`/api/issues/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ status, note }),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Update failed') }
+  return res.json()
+}
 
 export async function getIssues(governorateId?: string): Promise<Issue[]> {
   const qs = governorateId ? `?governorateId=${encodeURIComponent(governorateId)}` : ''

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { PrismaClient, Role, Category, Severity } from '@prisma/client'
+import { PrismaClient, Role, Category, Severity, Status } from '@prisma/client'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import bcrypt from 'bcryptjs'
 
@@ -131,17 +131,82 @@ async function main() {
     { reporter: citizen3, title: 'Pothole on Avenue Farhat Hached', description: 'Pothole in a busy commercial street, leaking oil visible.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 33.8840, longitude: 10.0980, address: 'Av. Farhat Hached, Gabès' },
   ]
 
+  // Helper to get the authority user for seeding lifecycle events
+  const authority = await prisma.user.findUnique({ where: { email: 'authority@demo.tn' } })
+  const admin = await prisma.user.findUnique({ where: { email: 'admin@demo.tn' } })
+
+  // Lifecycle scripts: issue index → array of {status, note, actorId, daysAfter}
+  // daysAfter is relative to the previous event
+  type EventScript = { status: Status; note?: string; actorId: string; daysAfter: number }
+  const lifecycles: Record<number, EventScript[]> = {
+    // Tunis pothole → fully resolved
+    0: [
+      { status: Status.ACKNOWLEDGED, note: 'Confirmed on site. Repair crew scheduled.', actorId: admin!.id, daysAfter: 1 },
+      { status: Status.IN_PROGRESS, note: 'Crew deployed, filling underway.', actorId: admin!.id, daysAfter: 2 },
+      { status: Status.RESOLVED, note: 'Repair complete. Road surface restored.', actorId: admin!.id, daysAfter: 1 },
+    ],
+    // Tunis flooding → acknowledged + in progress
+    1: [
+      { status: Status.ACKNOWLEDGED, note: 'Drainage team notified.', actorId: admin!.id, daysAfter: 1 },
+      { status: Status.IN_PROGRESS, note: 'Pumping equipment deployed.', actorId: admin!.id, daysAfter: 2 },
+    ],
+    // Sfax traffic light → acknowledged
+    3: [
+      { status: Status.ACKNOWLEDGED, note: 'Electrical team dispatched to assess.', actorId: admin!.id, daysAfter: 1 },
+    ],
+    // Sousse pothole → rejected (duplicate report)
+    5: [
+      { status: Status.REJECTED, note: 'Duplicate of an existing work order. Repair already scheduled.', actorId: admin!.id, daysAfter: 1 },
+    ],
+    // Monastir pothole → full lifecycle (authority scoped to Monastir)
+    7: [
+      { status: Status.ACKNOWLEDGED, note: 'Logged. Scheduled for next maintenance round.', actorId: authority!.id, daysAfter: 1 },
+      { status: Status.IN_PROGRESS, note: 'Road crew on site.', actorId: authority!.id, daysAfter: 3 },
+      { status: Status.RESOLVED, note: 'Pothole filled and surface sealed.', actorId: authority!.id, daysAfter: 1 },
+    ],
+    // Kairouan signage → acknowledged + in progress
+    12: [
+      { status: Status.ACKNOWLEDGED, note: 'Dangerous junction confirmed. Sign procurement in progress.', actorId: admin!.id, daysAfter: 2 },
+      { status: Status.IN_PROGRESS, note: 'Signs installed on 3 of 4 approaches.', actorId: admin!.id, daysAfter: 3 },
+    ],
+  }
+
   let seeded = 0
+  const createdIssues: Array<{ id: string; createdAt: Date }> = []
+
   for (const s of samples) {
     const feature = govFeatureAt(s.latitude, s.longitude, fc)
     if (!feature) { console.warn(`No governorate matched for "${s.title}" — skipping`); continue }
     const gov = await prisma.governorate.findUnique({ where: { name: feature.properties.shapeName } })
     if (!gov) continue
     const { reporter, ...data } = s
-    await prisma.issue.create({ data: { ...data, reporterId: reporter.id, governorateId: gov.id } })
+    const issue = await prisma.issue.create({ data: { ...data, reporterId: reporter.id, governorateId: gov.id } })
+    // Initial REPORTED event
+    await prisma.statusEvent.create({
+      data: { issueId: issue.id, status: Status.REPORTED, actorId: reporter.id, createdAt: issue.createdAt },
+    })
+    createdIssues.push({ id: issue.id, createdAt: issue.createdAt })
     seeded++
   }
-  console.log(`Seeded ${seeded} demo issues across Tunisia`)
+
+  // Apply lifecycle scripts — advance status + create events with realistic timestamps
+  for (const [idxStr, events] of Object.entries(lifecycles)) {
+    const idx = Number(idxStr)
+    const issueRef = createdIssues[idx]
+    if (!issueRef) continue
+    let t = new Date(issueRef.createdAt)
+    let finalStatus: Status = Status.REPORTED
+    for (const ev of events) {
+      t = new Date(t.getTime() + ev.daysAfter * 86_400_000)
+      await prisma.statusEvent.create({
+        data: { issueId: issueRef.id, status: ev.status, note: ev.note, actorId: ev.actorId, createdAt: t },
+      })
+      finalStatus = ev.status
+    }
+    await prisma.issue.update({ where: { id: issueRef.id }, data: { status: finalStatus } })
+  }
+
+  console.log(`Seeded ${seeded} demo issues with lifecycle events across Tunisia`)
 }
 
 main()

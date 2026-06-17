@@ -14,6 +14,7 @@ import { Admin } from './pages/Admin'
 import { Profile } from './pages/Profile'
 import { VerifyEmail } from './pages/VerifyEmail'
 import { MapPage } from './pages/MapPage'
+import { IssueDetail } from './pages/IssueDetail'
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/map" element={<MapPage />} />
+          <Route path="/issues/:id" element={<IssueDetail />} />
         </Routes>
         <Footer />
       </AuthProvider>

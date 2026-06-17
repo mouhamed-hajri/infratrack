@@ -56,6 +56,7 @@ function ClickHandler({ onChange }: { onChange: (lat: number, lng: number) => vo
   return null
 }
 
+
 export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -123,11 +124,8 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
     setBusy(true)
     try {
       let photoUrl: string | undefined
-      if (photo) {
-        if (cloudinaryConfigured) {
-          photoUrl = await uploadPhoto(photo)
-        }
-        // ponytail: if Cloudinary not configured, skip photo — form still submits
+      if (photo && cloudinaryConfigured) {
+        photoUrl = await uploadPhoto(photo)
       }
       const issue = await createIssue({
         title, description, category, severity,
@@ -180,7 +178,7 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
               </button>
               {!cloudinaryConfigured && (
                 <div className="absolute bottom-0 inset-x-0 bg-ink/60 px-3 py-1.5 text-center text-xs text-paper backdrop-blur-sm">
-                  Photo preview only — configure Cloudinary to upload
+                  Photo won't be saved — configure Cloudinary to enable uploads
                 </div>
               )}
             </div>
@@ -298,6 +296,9 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
             <MapContainer
               center={[34.0, 9.5]}
               zoom={5}
+              minZoom={5}
+              maxBounds={[[29.5, 7.0], [38.0, 12.5]]}
+              maxBoundsViscosity={1.0}
               scrollWheelZoom
               className="h-full w-full"
             >
