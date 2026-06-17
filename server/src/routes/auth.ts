@@ -75,7 +75,7 @@ router.post('/verify-cin', requireAuth, async (req, res) => {
   let cin: string
   let cinVerified = false
 
-  if (process.env.ANTHROPIC_API_KEY) {
+  if (process.env.GROQ_API_KEY) {
     if (!selfieBase64 || !cinPhotoBase64) {
       res.status(400).json({ error: 'selfie and CIN card photo are required' }); return
     }

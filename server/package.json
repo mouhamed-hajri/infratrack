@@ -13,13 +13,13 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.104.2",
     "@prisma/client": "^6.19.3",
     "@turf/boolean-point-in-polygon": "^7.3.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "groq-sdk": "^1.2.1",
     "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
