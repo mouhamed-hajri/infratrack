@@ -7,6 +7,7 @@ import { severityColor } from '../lib/severity'
 import { SeverityBadge } from './SeverityBadge'
 import { StatusBadge } from './StatusBadge'
 import { PhotoLightbox } from './PhotoLightbox'
+import { HeatLayer } from './HeatLayer'
 
 // ponytail: divIcon avoids the Vite marker-PNG 404 and gives severity color
 const iconFor = (severity: string) =>
@@ -47,15 +48,25 @@ function LocateButton() {
   )
 }
 
+const SEV_LEGEND = [
+  { label: 'Critical', color: '#A8321F' },
+  { label: 'High', color: '#C4622D' },
+  { label: 'Medium', color: '#B8861E' },
+  { label: 'Low', color: '#3F7D5B' },
+]
+
 interface Props {
   issues: Issue[]
   className?: string
   showLocate?: boolean
+  mode?: 'pins' | 'heat'
+  onModeChange?: (m: 'pins' | 'heat') => void
 }
 
-export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) {
+export function IssueMap({ issues, className = 'h-[70vh]', showLocate, mode, onModeChange }: Props) {
   const valid = issues.filter((i) => i.latitude && i.longitude && i.status !== 'RESOLVED' && i.status !== 'REJECTED')
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const controlled = mode !== undefined
 
   return (
     // ponytail: z-0 + isolate contains Leaflet's z-700 panes beneath fixed z-50 navbars
@@ -75,7 +86,7 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
         />
         <FitBounds issues={valid} />
         {showLocate && <LocateButton />}
-        {valid.map((issue) => (
+        {(!controlled || mode === 'pins') && valid.map((issue) => (
           <Marker key={issue.id} position={[issue.latitude, issue.longitude]} icon={iconFor(issue.severity)}>
             <Popup minWidth={240} maxWidth={280}>
               <div style={{ width: 240 }} className="space-y-1.5 py-0.5">
@@ -83,7 +94,7 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
                   <img
                     src={issue.photoUrl}
                     alt="issue"
-                    style={{ width: 'calc(100% + 24px)', height: 140, objectFit: 'cover', borderRadius: 8, display: 'block', margin: '0 -12px 8px', cursor: 'zoom-in' }}
+                    style={{ width: 'calc(100% + 24px)', objectFit: 'contain', background: '#F2EBDF', borderRadius: 8, display: 'block', margin: '0 -12px 8px', cursor: 'zoom-in' }}
                     onClick={() => setLightbox(issue.photoUrl!)}
                   />
                 )}
@@ -103,7 +114,37 @@ export function IssueMap({ issues, className = 'h-[70vh]', showLocate }: Props) 
             </Popup>
           </Marker>
         ))}
+        {controlled && mode === 'heat' && <HeatLayer issues={valid} />}
       </MapContainer>
+
+      {/* Severity legend — shown in heat mode */}
+      {controlled && mode === 'heat' && (
+        <div className="pointer-events-none absolute bottom-4 left-4 z-[1000] flex flex-col gap-1 rounded-xl bg-card/90 px-3 py-2 shadow-md backdrop-blur-sm">
+          {SEV_LEGEND.map(s => (
+            <span key={s.label} className="flex items-center gap-1.5 text-xs text-ink">
+              <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Mode toggle (passed from parent if controlled) */}
+      {controlled && onModeChange && (
+        <div className="absolute right-4 top-4 z-[1000] flex rounded-xl bg-card/90 p-0.5 shadow-md backdrop-blur-sm ring-1 ring-ink/10">
+          {(['pins', 'heat'] as const).map(m => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onModeChange(m)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition ${mode === m ? 'bg-white/80 text-ink shadow-sm' : 'text-muted hover:text-ink'}`}
+            >
+              {m === 'pins' ? 'Pins' : 'Heatmap'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {lightbox && <PhotoLightbox src={lightbox} onClose={() => setLightbox(null)} />}
     </div>
   )

@@ -66,7 +66,7 @@ export function IssueDetail() {
               <img
                 src={issue.photoUrl}
                 alt={issue.title}
-                className="h-56 w-full cursor-zoom-in object-cover md:h-72"
+                className="w-full cursor-zoom-in object-contain bg-paper-2"
                 onClick={() => setLightbox(true)}
               />
               {lightbox && <PhotoLightbox src={issue.photoUrl} alt={issue.title} onClose={() => setLightbox(false)} />}

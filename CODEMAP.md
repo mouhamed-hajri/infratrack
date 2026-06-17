@@ -1,7 +1,7 @@
 # CODEMAP — InfraTrack
 
 Plain-language map of every file: what it is and why it exists. Maintained from day one;
-grows into the technical report. **Status: Week 6** (AI photo-severity — Groq vision classifies damage).
+grows into the technical report. **Status: Week 7** (Command center — analytics, heatmap, AI briefing, dispatch priority).
 
 ## The request flow (how it all connects)
 ```
@@ -31,8 +31,11 @@ point-in-polygon — deterministic, computed server-side at creation time.
 | `prisma/seed.ts` | Seeds the 24 governorates, a demo citizen + demo authority, and 2 sample issues. Idempotent (upserts + count guard). |
 | `src/db.ts` | The single shared Prisma client. |
 | `src/geo.ts` | Loads boundaries into memory at startup; `attribute(lat,lng)` → `{governorateId, municipalityId}` via `@turf/boolean-point-in-polygon`. **GeoJSON/Turf use `[lng, lat]` order.** |
-| `src/routes/issues.ts` | All issue endpoints: list, mine, jurisdiction, detail, create, status-change, edit, delete. New: `POST /analyze-photo` (AI assessment, auth-gated). |
-| `src/lib/analyzePhoto.ts` | Sends a base64 image to Groq (llama-4-scout vision) in JSON-mode; returns `{category, severity, confidence, summary}`. Validates/clamps all AI output before returning. |
+| `src/routes/issues.ts` | All issue endpoints: list, mine, jurisdiction, detail, create, status-change, edit, delete. `POST /analyze-photo` (AI assessment, auth-gated). |
+| `src/routes/analytics.ts` | `GET /api/analytics` (KPIs + charts data, role-scoped) + `POST /api/analytics/briefing` (Groq executive summary, on-demand). |
+| `src/lib/analyzePhoto.ts` | Sends a base64 image to Groq (llama-4-scout vision) in JSON-mode; returns `{category, severity, confidence, summary, title, description}`. |
+| `src/lib/analytics.ts` | Pure analytics engine. `OPEN_STATUSES`, `SLA_HOURS`, `SEVERITY_WEIGHT` constants. `loadScopedIssues` (one DB query, role-scoped). `computeAnalytics` (pure function: KPIs, distributions, weekly buckets, worstZones). |
+| `src/lib/briefing.ts` | `generateBriefing(analytics)` — calls Groq `llama-3.3-70b-versatile` JSON-mode for 3-4 sentence executive summary + ≤3 actions. Falls back to deterministic text on any error. |
 | `src/index.ts` | Wires Express (CORS, JSON, routes, `/api/health`, JSON error handler), loads boundaries, listens on `:4000`. |
 
 ## Client (`client/`)
@@ -41,25 +44,30 @@ point-in-polygon — deterministic, computed server-side at creation time.
 | `vite.config.ts` | Vite + React + Tailwind v4 plugin + dev proxy (`/api` → `:4000`). |
 | `src/main.tsx` | React entry — renders `<App/>`, imports the stylesheet. (Vite scaffold) |
 | `src/index.css` | `@import "tailwindcss";` + page background. |
-| `src/lib/api.ts` | Typed `fetch` wrappers for all endpoints. `Issue` type includes `ai*` fields. `analyzePhoto(file)` sends to the server endpoint. |
-| `src/lib/image.ts` | `fileToBase64(file, maxDim)` — canvas resize to 1024px, returns JPEG data URL. Used before sending to the AI endpoint. |
+| `src/lib/api.ts` | Typed `fetch` wrappers for all endpoints. `Issue`, `Analytics`, `BriefingResult` types. `getAnalytics()`, `generateBriefing()`, `analyzePhoto()`. |
+| `src/lib/image.ts` | `fileToBase64(file, maxDim)` — canvas resize to 1024px, returns JPEG data URL. |
 | `src/lib/severity.ts` | `SEVERITY_COLOR` map + `severityColor(s)` helper; single source of truth for severity hex colors. |
-| `src/components/ReportForm.tsx` | The report form. On photo select: auto-analyzes with AI, shows `<AiSuggestion>`, pre-fills category + severity. Gracefully degrades on error. |
-| `src/components/AiSuggestion.tsx` | Presentational panel: shows spinner while analyzing; confidence + category + summary when done; gentle error note on failure. |
-| `src/components/IssueList.tsx` | Renders issue cards (title, severity badge, category, status, attributed governorate). |
+| `src/lib/priority.ts` | `SEVERITY_WEIGHT`, `SLA_HOURS`, `OPEN_STATUSES`, `ageDays`, `isOverdue`, `priorityOf` — mirrors server analytics constants; drives dispatch queue sort + overdue chips. |
+| `src/components/ReportForm.tsx` | The report form. On photo select: auto-analyzes with AI, shows `<AiSuggestion>`, pre-fills all fields. |
+| `src/components/AiSuggestion.tsx` | Spinner / result / error panel for photo AI analysis. |
+| `src/components/AiBriefing.tsx` | On-demand AI executive briefing — idle/loading/done/error states; calls `generateBriefing()` on button click. |
+| `src/components/HeatLayer.tsx` | Leaflet heatmap layer (`leaflet.heat`). Uses `useMap()` child pattern; severity-weighted points; cleans up on unmount. |
+| `src/components/IssueList.tsx` | Renders issue cards with hover photo popup + overdue chip when `isOverdue(issue)`. |
 | `src/App.tsx` | Page layout: form + governorate filter dropdown + list; refreshes the list on create. |
 
-## Design system (`client/src/ui/`) — liquid glass
-The premium "liquid glass" look (per the design brief). **Reuse these across the whole project.**
+## Design system (`client/src/ui/`) — liquid glass + viz toolkit
 
 | File | Role |
 |---|---|
-| `ui/GlassProvider.tsx` | Wraps the app; shares (via context) the page element all glass tracks the mouse against. |
-| `ui/Background.tsx` | Fixed dark gradient + 3 drifting blurred orbs (blue / violet / cyan) that the glass refracts. |
-| `ui/GlassButton.tsx` | True `LiquidGlass` pill button — hero CTAs only (standalone, never nested). |
-| `ui/GlassCard.tsx` | True `LiquidGlass` card — hero stat + feature cards. |
-| `ui/Nav.tsx`, `ui/Footer.tsx` | Full-width **CSS-glass** strips (`backdrop-blur`). |
-| `.glass` / `.glass-btn` (in `index.css`) | CSS glassmorphism for any container/button that holds other elements. |
+| `ui/Surface.tsx` | Reusable card container — paper background, border ring, light shadow. |
+| `ui/Eyebrow.tsx` | Small uppercase label above headings. |
+| `ui/Reveal.tsx` | Scroll-triggered fade-in wrapper. |
+| `ui/Button.tsx` | Primary action button. |
+| `ui/viz/StatCard.tsx` | KPI card — count-up number, ▲▼ week delta chip, optional danger tone. |
+| `ui/viz/TrendArea.tsx` | SVG dual-series area chart (reported vs resolved, 8 weeks). Hand-built, zero deps. |
+| `ui/viz/BarList.tsx` | Horizontal labeled bar list with animated widths. Used for category, funnel, worst-zones. |
+| `ui/viz/Donut.tsx` | CSS `conic-gradient` severity ring + legend. Guards zero-sum. |
+| `ui/viz/useCountUp.ts` | rAF count-up hook; skips animation under `prefers-reduced-motion`. |
 
 **Rule of thumb (a real `liquid-glass-react` constraint):** use true `LiquidGlass` only for *standalone* showcase surfaces. It **cannot be nested** (glass-inside-glass breaks rendering) and a `LiquidGlass` strip won't reliably stretch full-width — so nav, form, footer, and list cards use the lighter `.glass` / `.glass-btn` CSS instead. Same look, faster on mobile, cross-browser. `prefers-reduced-motion` freezes the orbs. Entrance animations: framer-motion fade-up on scroll per section.
 

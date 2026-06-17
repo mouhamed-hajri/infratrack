@@ -104,31 +104,38 @@ async function main() {
 
   // 5. Demo issues — wipe and recreate so re-running stays idempotent
   await prisma.issue.deleteMany({})
+  // daysAgo spreads issues across ~8 weeks so analytics trend/overdue flags are live
   const samples = [
-    // Tunis
-    { reporter: citizen,  title: 'Pothole on Avenue Habib Bourguiba', description: 'Large pothole in the middle lane causing traffic swerves.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 36.8065, longitude: 10.1815, address: 'Av. Habib Bourguiba, Tunis' },
-    { reporter: citizen2, title: 'Flood on Rue de Marseille', description: 'Street completely flooded after last night\'s rain, cars stuck.', category: Category.FLOODING, severity: Severity.CRITICAL, latitude: 36.8190, longitude: 10.1660, address: 'Rue de Marseille, Tunis' },
-    { reporter: citizen3, title: 'Damaged road surface near Bab Bhar', description: 'Cracked asphalt spanning entire lane, dangerous for cyclists.', category: Category.ROAD_DAMAGE, severity: Severity.MEDIUM, latitude: 36.7990, longitude: 10.1735, address: 'Bab Bhar, Tunis' },
-    // Sfax
-    { reporter: citizen4, title: 'Traffic light out near Sfax city centre', description: 'Two consecutive traffic lights non-functional since Monday.', category: Category.TRAFFIC_LIGHT, severity: Severity.CRITICAL, latitude: 34.7400, longitude: 10.7600, address: 'Centre-ville, Sfax' },
-    { reporter: citizen,  title: 'Missing road sign on Route de Tunis', description: 'Speed limit sign knocked down by a truck, not replaced.', category: Category.SIGNAGE, severity: Severity.LOW, latitude: 34.7300, longitude: 10.7680, address: 'Route de Tunis, Sfax' },
-    // Sousse
-    { reporter: citizen2, title: 'Deep pothole on Route de la Corniche', description: 'Pothole ~30 cm deep, two motorbikes already fell.', category: Category.POTHOLE, severity: Severity.CRITICAL, latitude: 35.8288, longitude: 10.6350, address: 'Route de la Corniche, Sousse' },
-    { reporter: citizen3, title: 'Collapsed road shoulder near Sahloul', description: 'Road shoulder eroded and collapsed, 5 m long section.', category: Category.ROAD_DAMAGE, severity: Severity.HIGH, latitude: 35.8500, longitude: 10.5900, address: 'Sahloul, Sousse' },
-    // Monastir
-    { reporter: citizen,  title: 'Large pothole near the Ribat', description: 'Deep pothole on the main road, risk to motorbikes.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 35.7780, longitude: 10.8260, address: 'Near Ribat, Monastir' },
-    { reporter: citizen4, title: 'Broken pavement near Marina', description: 'Severely cracked pavement causing tripping hazard for pedestrians.', category: Category.ROAD_DAMAGE, severity: Severity.MEDIUM, latitude: 35.7735, longitude: 10.8310, address: 'Marina, Monastir' },
-    // Bizerte
-    { reporter: citizen2, title: 'Flooding on RN7 after heavy rain', description: 'National road flooded for 200 m, impassable by regular cars.', category: Category.FLOODING, severity: Severity.HIGH, latitude: 37.2700, longitude: 9.8740, address: 'RN7, Bizerte' },
-    { reporter: citizen3, title: 'Traffic light stuck on red, Bizerte centre', description: 'Busy 4-way intersection with stuck light causing tailbacks.', category: Category.TRAFFIC_LIGHT, severity: Severity.HIGH, latitude: 37.2740, longitude: 9.8730, address: 'Centre, Bizerte' },
-    // Nabeul
-    { reporter: citizen,  title: 'Pothole cluster on Route de Hammamet', description: 'Series of 6 potholes in 50 m stretch.', category: Category.POTHOLE, severity: Severity.MEDIUM, latitude: 36.4510, longitude: 10.7350, address: 'Route de Hammamet, Nabeul' },
-    // Kairouan
-    { reporter: citizen4, title: 'Signage missing at dangerous crossroads', description: 'No stop sign or yield sign at a blind junction, near-miss accidents daily.', category: Category.SIGNAGE, severity: Severity.CRITICAL, latitude: 35.6745, longitude: 10.1015, address: 'Near Medina entrance, Kairouan' },
-    // Gafsa
-    { reporter: citizen2, title: 'Road collapse on Route Minière', description: 'Heavy trucks caused partial road collapse, 1 m subsidence.', category: Category.ROAD_DAMAGE, severity: Severity.CRITICAL, latitude: 34.4250, longitude: 8.7840, address: 'Route Minière, Gafsa' },
-    // Gabès
-    { reporter: citizen3, title: 'Pothole on Avenue Farhat Hached', description: 'Pothole in a busy commercial street, leaking oil visible.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 33.8840, longitude: 10.0980, address: 'Av. Farhat Hached, Gabès' },
+    // Tunis — index 0: RESOLVED 42d ago
+    { reporter: citizen,  daysAgo: 42, title: 'Pothole on Avenue Habib Bourguiba', description: 'Large pothole in the middle lane causing traffic swerves.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 36.8065, longitude: 10.1815, address: 'Av. Habib Bourguiba, Tunis' },
+    // Tunis — index 1: CRITICAL in-progress 4d ago → overdue (>24h SLA)
+    { reporter: citizen2, daysAgo: 4, title: 'Flood on Rue de Marseille', description: 'Street completely flooded after last night\'s rain, cars stuck.', category: Category.FLOODING, severity: Severity.CRITICAL, latitude: 36.8190, longitude: 10.1660, address: 'Rue de Marseille, Tunis' },
+    // Tunis — index 2: MEDIUM reported 6d ago → not overdue (<7d SLA)
+    { reporter: citizen3, daysAgo: 6, title: 'Damaged road surface near Bab Bhar', description: 'Cracked asphalt spanning entire lane, dangerous for cyclists.', category: Category.ROAD_DAMAGE, severity: Severity.MEDIUM, latitude: 36.7990, longitude: 10.1735, address: 'Bab Bhar, Tunis' },
+    // Sfax — index 3: CRITICAL acknowledged 3d ago → overdue (>24h SLA)
+    { reporter: citizen4, daysAgo: 3, title: 'Traffic light out near Sfax city centre', description: 'Two consecutive traffic lights non-functional since Monday.', category: Category.TRAFFIC_LIGHT, severity: Severity.CRITICAL, latitude: 34.7400, longitude: 10.7600, address: 'Centre-ville, Sfax' },
+    // Sfax — index 4: LOW reported 10d ago → not overdue (<30d SLA)
+    { reporter: citizen,  daysAgo: 10, title: 'Missing road sign on Route de Tunis', description: 'Speed limit sign knocked down by a truck, not replaced.', category: Category.SIGNAGE, severity: Severity.LOW, latitude: 34.7300, longitude: 10.7680, address: 'Route de Tunis, Sfax' },
+    // Sousse — index 5: REJECTED 15d ago
+    { reporter: citizen2, daysAgo: 15, title: 'Deep pothole on Route de la Corniche', description: 'Pothole ~30 cm deep, two motorbikes already fell.', category: Category.POTHOLE, severity: Severity.CRITICAL, latitude: 35.8288, longitude: 10.6350, address: 'Route de la Corniche, Sousse' },
+    // Sousse — index 6: HIGH reported 5d ago → overdue (>72h SLA)
+    { reporter: citizen3, daysAgo: 5, title: 'Collapsed road shoulder near Sahloul', description: 'Road shoulder eroded and collapsed, 5 m long section.', category: Category.ROAD_DAMAGE, severity: Severity.HIGH, latitude: 35.8500, longitude: 10.5900, address: 'Sahloul, Sousse' },
+    // Monastir — index 7: RESOLVED 30d ago
+    { reporter: citizen,  daysAgo: 30, title: 'Large pothole near the Ribat', description: 'Deep pothole on the main road, risk to motorbikes.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 35.7780, longitude: 10.8260, address: 'Near Ribat, Monastir' },
+    // Monastir — index 8: MEDIUM reported 2d ago → not overdue
+    { reporter: citizen4, daysAgo: 2, title: 'Broken pavement near Marina', description: 'Severely cracked pavement causing tripping hazard for pedestrians.', category: Category.ROAD_DAMAGE, severity: Severity.MEDIUM, latitude: 35.7735, longitude: 10.8310, address: 'Marina, Monastir' },
+    // Bizerte — index 9: HIGH reported 1d ago → not overdue (<72h SLA)
+    { reporter: citizen2, daysAgo: 1, title: 'Flooding on RN7 after heavy rain', description: 'National road flooded for 200 m, impassable by regular cars.', category: Category.FLOODING, severity: Severity.HIGH, latitude: 37.2700, longitude: 9.8740, address: 'RN7, Bizerte' },
+    // Bizerte — index 10: HIGH reported 8d ago → overdue (>72h SLA)
+    { reporter: citizen3, daysAgo: 8, title: 'Traffic light stuck on red, Bizerte centre', description: 'Busy 4-way intersection with stuck light causing tailbacks.', category: Category.TRAFFIC_LIGHT, severity: Severity.HIGH, latitude: 37.2740, longitude: 9.8730, address: 'Centre, Bizerte' },
+    // Nabeul — index 11: MEDIUM reported 3d ago → not overdue
+    { reporter: citizen,  daysAgo: 3, title: 'Pothole cluster on Route de Hammamet', description: 'Series of 6 potholes in 50 m stretch.', category: Category.POTHOLE, severity: Severity.MEDIUM, latitude: 36.4510, longitude: 10.7350, address: 'Route de Hammamet, Nabeul' },
+    // Kairouan — index 12: CRITICAL in-progress 12d ago → overdue (>24h SLA)
+    { reporter: citizen4, daysAgo: 12, title: 'Signage missing at dangerous crossroads', description: 'No stop sign or yield sign at a blind junction, near-miss accidents daily.', category: Category.SIGNAGE, severity: Severity.CRITICAL, latitude: 35.6745, longitude: 10.1015, address: 'Near Medina entrance, Kairouan' },
+    // Gafsa — index 13: CRITICAL reported 55d ago → massively overdue
+    { reporter: citizen2, daysAgo: 55, title: 'Road collapse on Route Minière', description: 'Heavy trucks caused partial road collapse, 1 m subsidence.', category: Category.ROAD_DAMAGE, severity: Severity.CRITICAL, latitude: 34.4250, longitude: 8.7840, address: 'Route Minière, Gafsa' },
+    // Gabès — index 14: HIGH reported 1d ago → not overdue
+    { reporter: citizen3, daysAgo: 1, title: 'Pothole on Avenue Farhat Hached', description: 'Pothole in a busy commercial street, leaking oil visible.', category: Category.POTHOLE, severity: Severity.HIGH, latitude: 33.8840, longitude: 10.0980, address: 'Av. Farhat Hached, Gabès' },
   ]
 
   // Helper to get the authority user for seeding lifecycle events
@@ -179,11 +186,12 @@ async function main() {
     if (!feature) { console.warn(`No governorate matched for "${s.title}" — skipping`); continue }
     const gov = await prisma.governorate.findUnique({ where: { name: feature.properties.shapeName } })
     if (!gov) continue
-    const { reporter, ...data } = s
-    const issue = await prisma.issue.create({ data: { ...data, reporterId: reporter.id, governorateId: gov.id } })
-    // Initial REPORTED event
+    const { reporter, daysAgo, ...data } = s
+    const createdAt = new Date(Date.now() - daysAgo * 86_400_000)
+    const issue = await prisma.issue.create({ data: { ...data, createdAt, reporterId: reporter.id, governorateId: gov.id } })
+    // Initial REPORTED event backdated to match issue creation
     await prisma.statusEvent.create({
-      data: { issueId: issue.id, status: Status.REPORTED, actorId: reporter.id, createdAt: issue.createdAt },
+      data: { issueId: issue.id, status: Status.REPORTED, actorId: reporter.id, createdAt },
     })
     createdIssues.push({ id: issue.id, createdAt: issue.createdAt })
     seeded++

@@ -66,8 +66,10 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
   const [latitude, setLatitude] = useState('')
   const [longitude, setLongitude] = useState('')
   const [address, setAddress] = useState('')
-  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle')
-  const [gpsCenter, setGpsCenter] = useState<[number, number] | null>(null) // only set by GPS, triggers map fly
+  const [geoStatus, setGeoStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('loading')
+  const [gpsCenter, setGpsCenter] = useState<[number, number] | null>(null)
+
+  useEffect(() => { detectLocation() }, [])
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [aiStatus, setAiStatus] = useState<'idle' | 'analyzing' | 'done' | 'error'>('idle')
@@ -91,6 +93,8 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
         setAiStatus('done')
         setCategory(result.category)
         setSeverity(result.severity)
+        if (result.title) setTitle(result.title)
+        if (result.description) setDescription(result.description)
       } catch {
         setAiStatus('error')
       }
@@ -188,7 +192,7 @@ export function ReportForm({ onCreated }: { onCreated: (issue: Issue) => void })
           <label className="text-xs font-medium uppercase tracking-wide text-muted">Photo</label>
           {photoPreview ? (
             <div className="relative w-full overflow-hidden rounded-2xl bg-paper-2">
-              <img src={photoPreview} alt="Preview" className="h-48 w-full object-cover" />
+              <img src={photoPreview} alt="Preview" className="w-full object-contain bg-paper-2" />
               <button
                 type="button"
                 onClick={removePhoto}

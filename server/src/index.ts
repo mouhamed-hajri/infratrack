@@ -4,6 +4,7 @@ import cors from 'cors'
 import issuesRouter from './routes/issues'
 import authRouter from './routes/auth'
 import municipalitiesRouter from './routes/municipalities'
+import analyticsRouter from './routes/analytics'
 import { loadBoundaries } from './geo'
 
 const app = express()
@@ -16,6 +17,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 app.use('/api/auth', authRouter)
 app.use('/api/issues', issuesRouter)
 app.use('/api/municipalities', municipalitiesRouter)
+app.use('/api/analytics', analyticsRouter)
 
 // JSON error handler (last middleware).
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

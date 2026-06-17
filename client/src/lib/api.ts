@@ -14,6 +14,8 @@ export type AiAssessment = {
   severity: string
   confidence: number
   summary: string
+  title: string
+  description: string
 }
 
 export type Issue = {
@@ -225,6 +227,48 @@ export async function deleteIssue(id: string): Promise<void> {
     try { msg = JSON.parse(text).error ?? msg } catch { /* non-JSON */ }
     throw new Error(msg)
   }
+}
+
+// --- Analytics ---
+
+export type Analytics = {
+  scope: string
+  generatedAt: string
+  kpis: {
+    total: number
+    open: number
+    resolved: number
+    rejected: number
+    resolutionRate: number
+    criticalOpen: number
+    overdue: number
+    avgResolutionHours: number | null
+    avgAckHours: number | null
+    newThisWeek: number
+    newLastWeek: number
+  }
+  byCategory: { key: string; count: number }[]
+  bySeverity: { key: string; count: number }[]
+  byStatus: { key: string; count: number }[]
+  weekly: { week: string; reported: number; resolved: number }[]
+  worstZones: { name: string; open: number; score: number }[]
+}
+
+export type BriefingResult = {
+  briefing: string
+  actions: string[]
+}
+
+export async function getAnalytics(): Promise<Analytics> {
+  const res = await fetch('/api/analytics', { headers: authHeaders() })
+  if (!res.ok) throw new Error('Failed to load analytics')
+  return res.json()
+}
+
+export async function generateBriefing(): Promise<BriefingResult> {
+  const res = await fetch('/api/analytics/briefing', { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() } })
+  if (!res.ok) throw new Error('Failed to generate briefing')
+  return res.json()
 }
 
 // --- Admin ---
