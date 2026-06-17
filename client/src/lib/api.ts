@@ -155,6 +155,21 @@ export async function uploadPhoto(file: File): Promise<string> {
 
 export const cloudinaryConfigured = !!(CLOUD_NAME && UPLOAD_PRESET)
 
+export async function updateIssue(id: string, data: { title?: string; description?: string; category?: string; severity?: string }): Promise<Issue> {
+  const res = await fetch(`/api/issues/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Update failed') }
+  return res.json()
+}
+
+export async function deleteIssue(id: string): Promise<void> {
+  const res = await fetch(`/api/issues/${id}`, { method: 'DELETE', headers: authHeaders() })
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Delete failed') }
+}
+
 // --- Admin ---
 
 export async function createMunicipality(data: { name: string; governorateId: string; boundary: object }) {

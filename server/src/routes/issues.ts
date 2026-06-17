@@ -88,4 +88,40 @@ router.post('/', requireAuth, async (req, res) => {
   res.status(201).json(issue)
 })
 
+// PATCH /api/issues/:id — reporter only, REPORTED status only
+router.patch('/:id', requireAuth, async (req, res) => {
+  const { id: userId } = (req as AuthedRequest).user
+  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+  if (!issue) { res.status(404).json({ error: 'Not found' }); return }
+  if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
+  if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot edit after it has been acknowledged' }); return }
+
+  const { title, description, category, severity } = req.body ?? {}
+  if (category && !CATEGORIES.includes(category)) { res.status(400).json({ error: 'Invalid category' }); return }
+  if (severity && !SEVERITIES.includes(severity)) { res.status(400).json({ error: 'Invalid severity' }); return }
+
+  const updated = await prisma.issue.update({
+    where: { id: req.params.id },
+    data: {
+      ...(title && { title }),
+      ...(description !== undefined && { description }),
+      ...(category && { category }),
+      ...(severity && { severity }),
+    },
+    include: jurisdictionInclude,
+  })
+  res.json(updated)
+})
+
+// DELETE /api/issues/:id — reporter only, REPORTED status only
+router.delete('/:id', requireAuth, async (req, res) => {
+  const { id: userId } = (req as AuthedRequest).user
+  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+  if (!issue) { res.status(404).json({ error: 'Not found' }); return }
+  if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
+  if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot delete after it has been acknowledged' }); return }
+  await prisma.issue.delete({ where: { id: req.params.id } })
+  res.status(204).end()
+})
+
 export default router
