@@ -167,7 +167,12 @@ export async function updateIssue(id: string, data: { title?: string; descriptio
 
 export async function deleteIssue(id: string): Promise<void> {
   const res = await fetch(`/api/issues/${id}`, { method: 'DELETE', headers: authHeaders() })
-  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Delete failed') }
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    let msg = 'Delete failed'
+    try { msg = JSON.parse(text).error ?? msg } catch { /* non-JSON */ }
+    throw new Error(msg)
+  }
 }
 
 // --- Admin ---

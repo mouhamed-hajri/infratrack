@@ -6,8 +6,8 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    host: true,
     proxy: {
-      // Forward API calls to the Express server during dev (avoids CORS + hard-coded URLs).
       '/api': 'http://localhost:4000',
     },
   },

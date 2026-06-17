@@ -115,13 +115,18 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
 // DELETE /api/issues/:id — reporter only, REPORTED status only
 router.delete('/:id', requireAuth, async (req, res) => {
-  const { id: userId } = (req as AuthedRequest).user
-  const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
-  if (!issue) { res.status(404).json({ error: 'Not found' }); return }
-  if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
-  if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot delete after it has been acknowledged' }); return }
-  await prisma.issue.delete({ where: { id: req.params.id } })
-  res.status(204).end()
+  try {
+    const { id: userId } = (req as AuthedRequest).user
+    const issue = await prisma.issue.findUnique({ where: { id: req.params.id } })
+    if (!issue) { res.status(404).json({ error: 'Not found' }); return }
+    if (issue.reporterId !== userId) { res.status(403).json({ error: 'Not your report' }); return }
+    if (issue.status !== 'REPORTED') { res.status(403).json({ error: 'Cannot delete after it has been acknowledged' }); return }
+    await prisma.issue.delete({ where: { id: req.params.id } })
+    res.status(204).end()
+  } catch (err) {
+    console.error('DELETE /issues/:id error:', err)
+    res.status(500).json({ error: 'Failed to delete report' })
+  }
 })
 
 export default router
