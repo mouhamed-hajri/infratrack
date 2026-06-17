@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, useRef, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { updateProfile, verifyCin } from '../lib/api'
@@ -17,7 +17,7 @@ function StatusMsg({ type, msg }: { type: 'error' | 'success'; msg: string }) {
 }
 
 export function Profile() {
-  const { user, login, logout } = useAuth()
+  const { user, logout, updateUser } = useAuth()
   const navigate = useNavigate()
 
   // Info section
@@ -34,9 +34,14 @@ export function Profile() {
   const [pwBusy, setPwBusy] = useState(false)
 
   // CIN section
-  const [cin, setCin] = useState(user?.cin ?? '')
+  const [selfieFile, setSelfieFile] = useState<File | null>(null)
+  const [selfiePreview, setSelfiePreview] = useState<string | null>(null)
+  const [cinCardFile, setCinCardFile] = useState<File | null>(null)
+  const [cinCardPreview, setCinCardPreview] = useState<string | null>(null)
   const [cinMsg, setCinMsg] = useState<{ type: 'error' | 'success'; text: string } | null>(null)
   const [cinBusy, setCinBusy] = useState(false)
+  const selfieRef = useRef<HTMLInputElement>(null)
+  const cinCardRef = useRef<HTMLInputElement>(null)
 
   if (!user) return null
 
@@ -70,13 +75,47 @@ export function Profile() {
     }
   }
 
+  function pickPhoto(file: File, setFile: (f: File) => void, setPreview: (s: string) => void) {
+    setFile(file)
+    const reader = new FileReader()
+    reader.onload = (e) => setPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  async function resizeToBase64(file: File, maxDim = 1024): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        URL.revokeObjectURL(url)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      img.onerror = reject
+      img.src = url
+    })
+  }
+
   async function submitCin(e: FormEvent) {
     e.preventDefault()
     setCinMsg(null)
+    if (!selfieFile || !cinCardFile) {
+      setCinMsg({ type: 'error', text: 'Please take both a selfie and a photo of your CIN card.' })
+      return
+    }
     setCinBusy(true)
     try {
-      await verifyCin(cin.trim())
-      setCinMsg({ type: 'success', text: 'Identity confirmed. CIN saved.' })
+      const [selfieBase64, cinPhotoBase64] = await Promise.all([
+        resizeToBase64(selfieFile),
+        resizeToBase64(cinCardFile),
+      ])
+      const updated = await verifyCin(selfieBase64, cinPhotoBase64)
+      updateUser(updated)
+      setCinMsg({ type: 'success', text: `Identity confirmed! CIN ${updated.cin} verified.` })
     } catch (err) {
       setCinMsg({ type: 'error', text: err instanceof Error ? err.message : 'Verification failed' })
     } finally {
@@ -179,22 +218,57 @@ export function Profile() {
                 )}
               </div>
               <p className="mb-4 text-sm text-muted">
-                Enter your Tunisian national ID number (CIN) to confirm your identity. This helps authorities trust your reports.
+                Take a selfie and a photo of your Tunisian CIN card. Our AI will read your ID number and confirm it's really you.
               </p>
-              <form onSubmit={submitCin} className="space-y-4">
+              <form onSubmit={submitCin} className="space-y-5">
                 {cinMsg && <StatusMsg type={cinMsg.type} msg={cinMsg.text} />}
+
+                {/* Selfie */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium uppercase tracking-wide text-muted">CIN number (8 digits)</label>
-                  <input
-                    className={`${inputCls} tabular-nums tracking-widest`}
-                    placeholder="12345678"
-                    maxLength={8}
-                    value={cin}
-                    onChange={(e) => setCin(e.target.value.replace(/\D/g, ''))}
-                  />
+                  <label className="text-xs font-medium uppercase tracking-wide text-muted">Selfie</label>
+                  <input ref={selfieRef} type="file" accept="image/*" capture="user" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) pickPhoto(f, setSelfieFile, setSelfiePreview) }} />
+                  {selfiePreview ? (
+                    <div className="relative w-fit">
+                      <img src={selfiePreview} alt="selfie preview" className="h-32 w-32 rounded-2xl object-cover ring-1 ring-ink/10" />
+                      <button type="button" onClick={() => { setSelfieFile(null); setSelfiePreview(null) }}
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-clay text-paper text-xs shadow">✕</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => selfieRef.current?.click()}
+                      className="flex h-32 w-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink/20 text-muted transition hover:border-brand/40 hover:text-brand">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      <span className="text-xs">Take selfie</span>
+                    </button>
+                  )}
                 </div>
-                <Button type="submit" disabled={cinBusy || user.cinVerified} icon={false}>
-                  {cinBusy ? 'Verifying…' : user.cinVerified ? 'Identity confirmed' : 'Confirm identity'}
+
+                {/* CIN card photo */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium uppercase tracking-wide text-muted">CIN card photo</label>
+                  <input ref={cinCardRef} type="file" accept="image/*" capture="environment" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) pickPhoto(f, setCinCardFile, setCinCardPreview) }} />
+                  {cinCardPreview ? (
+                    <div className="relative w-fit">
+                      <img src={cinCardPreview} alt="CIN card preview" className="h-28 w-48 rounded-2xl object-cover ring-1 ring-ink/10" />
+                      <button type="button" onClick={() => { setCinCardFile(null); setCinCardPreview(null) }}
+                        className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-clay text-paper text-xs shadow">✕</button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => cinCardRef.current?.click()}
+                      className="flex h-28 w-48 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-ink/20 text-muted transition hover:border-brand/40 hover:text-brand">
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+                      </svg>
+                      <span className="text-xs">Photo of CIN card</span>
+                    </button>
+                  )}
+                </div>
+
+                <Button type="submit" disabled={cinBusy || user.cinVerified || !selfieFile || !cinCardFile} icon={false}>
+                  {cinBusy ? 'Analysing with AI…' : user.cinVerified ? 'Identity confirmed' : 'Verify identity'}
                 </Button>
               </form>
             </Surface>

@@ -118,11 +118,11 @@ export async function updateProfile(data: { name?: string; email?: string; curre
   return res.json()
 }
 
-export async function verifyCin(cin: string): Promise<AuthUser> {
+export async function verifyCin(selfieBase64: string, cinPhotoBase64: string): Promise<AuthUser> {
   const res = await fetch('/api/auth/verify-cin', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify({ cin }),
+    body: JSON.stringify({ selfieBase64, cinPhotoBase64 }),
   })
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error ?? 'Verification failed') }
   return res.json()

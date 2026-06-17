@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../db'
 import { signToken, requireAuth, type AuthedRequest } from '../auth'
+import { verifyIdentity } from '../lib/verifyIdentity'
 
 const router = Router()
 
@@ -64,16 +65,46 @@ router.patch('/me', requireAuth, async (req, res) => {
   res.json(updated)
 })
 
-// POST /api/auth/verify-cin — store CIN number (auto-verified for MVP demo)
+// POST /api/auth/verify-cin — AI face + CIN card verification
+// Body: { selfieBase64: string, cinPhotoBase64: string }
+// Falls back to manual { cin } entry when ANTHROPIC_API_KEY is unset.
 router.post('/verify-cin', requireAuth, async (req, res) => {
   const { id } = (req as AuthedRequest).user
-  const { cin } = req.body ?? {}
-  if (!cin || typeof cin !== 'string' || !/^\d{8}$/.test(cin)) {
-    res.status(400).json({ error: 'CIN must be exactly 8 digits' }); return
+  const { selfieBase64, cinPhotoBase64, cin: manualCin } = req.body ?? {}
+
+  let cin: string
+  let cinVerified = false
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    if (!selfieBase64 || !cinPhotoBase64) {
+      res.status(400).json({ error: 'selfie and CIN card photo are required' }); return
+    }
+    let result
+    try {
+      result = await verifyIdentity(selfieBase64, cinPhotoBase64)
+    } catch (err) {
+      res.status(500).json({ error: err instanceof Error ? err.message : 'AI verification failed' }); return
+    }
+    if (!result.cinNumber || !/^\d{8}$/.test(result.cinNumber)) {
+      res.status(400).json({ error: 'Could not read a valid 8-digit CIN from the card photo. Make sure the number is visible and in focus.' }); return
+    }
+    if (!result.faceMatch || result.confidence < 0.7) {
+      res.status(400).json({ error: `Face verification failed: ${result.reason}` }); return
+    }
+    cin = result.cinNumber
+    cinVerified = true
+  } else {
+    // ponytail: no AI key — fall back to manual CIN entry
+    if (!manualCin || typeof manualCin !== 'string' || !/^\d{8}$/.test(manualCin)) {
+      res.status(400).json({ error: 'CIN must be exactly 8 digits' }); return
+    }
+    cin = manualCin
+    cinVerified = true
   }
+
   const user = await prisma.user.update({
     where: { id },
-    data: { cin, cinVerified: true },
+    data: { cin, cinVerified },
     select: safeUser,
   })
   res.json(user)
